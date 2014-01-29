@@ -414,7 +414,7 @@ public class KThread {
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
 
 		new KThread(new PingTest(1)).setName("forked thread").fork();
-		new PingTest(0).run();
+		//new PingTest(0).run();
 	}
 
 	private static final char dbgThread = 't';
