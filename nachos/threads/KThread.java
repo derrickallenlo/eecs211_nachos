@@ -284,7 +284,22 @@ public class KThread {
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 		Lib.assertTrue(this != currentThread);
-
+		boolean intStatus = false;
+		while (this.status != statusFinished)
+		{
+			if(currentThread != this)
+			{
+				//if current thread is not this thread, current thread yield this thread 
+				currentThread.yield();
+			}
+			else
+			{
+				// let this thread keep running by turning off the interrupt
+				intStatus = Machine.interrupt().disable();
+			}
+		}
+		//System.out.println("joined thread finished");
+		Machine.interrupt().restore(intStatus);
 	}
 
 	/**
@@ -413,8 +428,10 @@ public class KThread {
 	public static void selfTest() {
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
 
-		new PingTest(0).run();
-		new KThread(new PingTest(2)).setName("forked thread").fork();
+		//new PingTest(0).run();
+		KThread t1 = new KThread(new PingTest(2));
+		t1.setName("wait finished thread").fork();
+		t1.join();
 		new KThread(new PingTest(1)).setName("forked thread").fork();
 	}
 
