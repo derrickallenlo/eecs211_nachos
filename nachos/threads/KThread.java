@@ -285,9 +285,8 @@ public class KThread {
 
 		Lib.assertTrue(this != currentThread);
 		
-		//disable interrupt 
-		//boolean intStatus = Machine.interrupt().disable();
-		while (this.status != statusFinished)
+		boolean intStatus = Machine.interrupt().disable();//block others
+		while (this.status != statusFinished)//make sure this thread must finish before leaving join()
 		{
 			if(currentThread != this)
 			{
@@ -295,8 +294,7 @@ public class KThread {
 				currentThread.yield();
 			}
 		}
-		//System.out.println("joined thread finished");
-		//Machine.interrupt().restore(intStatus);
+		Machine.interrupt().restore(intStatus);//let other run if this thread finished
 	}
 
 	/**
@@ -429,8 +427,11 @@ public class KThread {
 		new KThread(new PingTest(1)).setName("forked thread").fork();
 		KThread t1 = new KThread(new PingTest(2));
 		t1.setName("wait finished thread").fork();
-		t1.join();
+		t1.join();//join test
+		//Communicator.selfTest();//communicator and condition test
 		new KThread(new PingTest(3)).setName("forked thread").fork();
+		Boat.selfTest();
+		
 	}
 
 	private static final char dbgThread = 't';
