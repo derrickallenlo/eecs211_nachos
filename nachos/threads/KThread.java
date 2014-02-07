@@ -1,5 +1,7 @@
 package nachos.threads;
 
+import java.util.ArrayList;
+
 import nachos.machine.*;
 
 /**
@@ -353,26 +355,25 @@ public class KThread
 	{
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 		Lib.assertTrue(this != currentThread);				//joining thread can't be joining current thread
-		while (this.status != Status.STATUS_FINISHED)
+		//boolean intStatus = Machine.interrupt().disable();
+		//ArrayList<KThread> blockedList = new ArrayList<KThread>();
+		while (status != Status.STATUS_FINISHED)
 		{
 			if(currentThread != this)
 			{
-				//if current thread is not this thread, current thread yield this thread 
-				currentThread.yield();
+				
+				//blockedList.add(currentThread); 
+				yield();	//sleep()? to block?
 			}
 		}
 		
-		
-//		if (status == Status.STATUS_FINISHED)				//if this thread is already finished, return immediately
+//		for(KThread thread : blockedList)
 //		{
-//			return;
+//			thread.ready();
 //		}
-//		else // Blocks the calling thread until a thread terminates
-//		{
-//			boolean intStatus = Machine.interrupt().disable(); 	//block everyone else
-//			ready();											//finish this thread, then need to unblock others
-//			Machine.interrupt().restore(intStatus);				//stop blocking everyone else
-//		}
+//
+//		Machine.interrupt().restore(intStatus);
+//		runNextThread();
 	}
 
 	/**
@@ -411,8 +412,9 @@ public class KThread
 	{
 		KThread nextThread = readyQueue.nextThread();
 		if (nextThread == null)
+		{
 			nextThread = idleThread;
-
+		}
 		nextThread.run();
 	}
 
@@ -514,12 +516,20 @@ public class KThread
 	public static void selfTest() 
 	{
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
-
 		KThread t1 =new KThread(new PingTest(1)).setName("forked thread");
-		
+		KThread t2 =new KThread(new PingTest(2)).setName("forked thread");
+		new PingTest(0).run();
 		t1.fork();
 		t1.join();
-		new PingTest(0).run();
+		t2.fork();
+		t1.join();
+		t2.join();
+		//---------------------
+//		System.out.println("Time: " + Alarm.getTime());
+//		Alarm a = new Alarm();
+//		a.waitUntil(5);
+//		System.out.println("Time: " + Alarm.getTime());
+		//---------------------
 	}
 
 }

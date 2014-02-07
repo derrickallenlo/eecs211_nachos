@@ -6,7 +6,9 @@ import nachos.machine.*;
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
  */
-public class Alarm {
+public class Alarm 
+{
+	private KThread k;
 	/**
 	 * Allocate a new Alarm. Set the machine's timer interrupt handler to this
 	 * alarm's callback.
@@ -14,9 +16,12 @@ public class Alarm {
 	 * <p>
 	 * <b>Note</b>: Nachos will not function correctly with more than one alarm.
 	 */
-	public Alarm() {
-		Machine.timer().setInterruptHandler(new Runnable() {
-			public void run() {
+	public Alarm() 
+	{
+		Machine.timer().setInterruptHandler(new Runnable() 
+		{
+			public void run() 
+			{
 				timerInterrupt();
 			}
 		});
@@ -28,8 +33,9 @@ public class Alarm {
 	 * thread to yield, forcing a context switch if there is another thread that
 	 * should be run.
 	 */
-	public void timerInterrupt() {
-		KThread.currentThread().yield();
+	public void timerInterrupt() 
+	{
+		KThread.yield();
 	}
 
 	/**
@@ -44,10 +50,55 @@ public class Alarm {
 	 * 
 	 * @see nachos.machine.Timer#getTime()
 	 */
-	public void waitUntil(long x) {
-		// for now, cheat just to get something working (busy waiting is bad)
-		long wakeTime = Machine.timer().getTime() + x;
-		while (wakeTime > Machine.timer().getTime())
-			KThread.yield();
+	public void waitUntil(long x) //TODO
+	{
+		long wakeTime = getTime() + x;
+		
+		//Save state of thread
+		k = KThread.currentThread();
+		boolean intStatus = Machine.interrupt().disable();
+		
+		//zzz...
+		AlarmWaker aw = new AlarmWaker(k, wakeTime);
+		aw.run();
+		System.out.println("2");
+		KThread.sleep();
+		
+		//Restore to running
+		Machine.interrupt().restore(intStatus);
 	}
+	
+	public static long getTime()
+	{
+	 return Machine.timer().getTime() ;	
+	}
+	
+	private static class AlarmWaker implements Runnable 
+	{
+		KThread k;
+		long wakeTime;
+		
+		private AlarmWaker(KThread k, long wakeTime)
+		{
+			this.k = k;
+			this.wakeTime = wakeTime;
+		}
+		
+		public void run() 
+		{
+			while (wakeTime > getTime());
+			k.ready();
+			System.out.println("1");
+		}
+		
+	
+	}
+	
+	//A thread calls waitUntil to suspend its own execution until time has advanced to at least now + x.
+//	There is no requirement that threads start running
+//	immediately after waking up; just put them on the ready queue in the timer interrupt handler after
+//	they have waited for at least the right amount of time. Do not fork any additional threads to
+//	implement waitUntil(); you need only modify waitUntil() and the timer interrupt
+//	handler. waitUntil is not limited to one thread; any number of threads may call it and be
+//	suspended at any one time.
 }
