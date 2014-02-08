@@ -1,5 +1,7 @@
 package nachos.threads;
 
+import java.util.ArrayList;
+
 import nachos.machine.*;
 
 /**
@@ -40,7 +42,7 @@ import nachos.machine.*;
  */
 public class KThread 
 {
-	private static final char dbgThread = 't';
+	protected static final char dbgThread = 't';
 	/**
 	 * Additional state used by schedulers.
 	 * @see nachos.threads.PriorityScheduler.ThreadState
@@ -323,6 +325,13 @@ public class KThread
 
 		runNextThread();
 	}
+	
+	public static void block()
+	{
+		boolean intStatus = Machine.interrupt().disable();
+		sleep();
+		Machine.interrupt().restore(intStatus);
+	}
 
 	/**
 	 * Moves this thread to the ready state and adds this to the scheduler's
@@ -343,6 +352,13 @@ public class KThread
 
 		Machine.autoGrader().readyThread(this);
 	}
+	
+	public void wake()
+	{
+		boolean intStatus = Machine.interrupt().disable();
+		ready();
+		Machine.interrupt().restore(intStatus);
+	}
 
 	/**
 	 * Waits for this thread to finish. If this thread is already finished,
@@ -353,26 +369,25 @@ public class KThread
 	{
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 		Lib.assertTrue(this != currentThread);				//joining thread can't be joining current thread
-		while (this.status != Status.STATUS_FINISHED)
+		//boolean intStatus = Machine.interrupt().disable();
+		//ArrayList<KThread> blockedList = new ArrayList<KThread>();
+		while (status != Status.STATUS_FINISHED)
 		{
 			if(currentThread != this)
 			{
-				//if current thread is not this thread, current thread yield this thread 
-				currentThread.yield();
+				
+				//blockedList.add(currentThread); 
+				yield();	//sleep()? to block?
 			}
 		}
 		
-		
-//		if (status == Status.STATUS_FINISHED)				//if this thread is already finished, return immediately
+//		for(KThread thread : blockedList)
 //		{
-//			return;
+//			thread.ready();
 //		}
-//		else // Blocks the calling thread until a thread terminates
-//		{
-//			boolean intStatus = Machine.interrupt().disable(); 	//block everyone else
-//			ready();											//finish this thread, then need to unblock others
-//			Machine.interrupt().restore(intStatus);				//stop blocking everyone else
-//		}
+//
+//		Machine.interrupt().restore(intStatus);
+//		runNextThread();
 	}
 
 	/**
@@ -411,8 +426,9 @@ public class KThread
 	{
 		KThread nextThread = readyQueue.nextThread();
 		if (nextThread == null)
+		{
 			nextThread = idleThread;
-
+		}
 		nextThread.run();
 	}
 
@@ -514,12 +530,17 @@ public class KThread
 	public static void selfTest() 
 	{
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
-
 		KThread t1 =new KThread(new PingTest(1)).setName("forked thread");
-		
+		KThread t2 =new KThread(new PingTest(2)).setName("forked thread");
 		t1.fork();
-		t1.join();
+		t2.fork();
+		//t1.join();
+		//t2.join();
 		new PingTest(0).run();
+		//---------------------
+		Alarm a = new Alarm();
+		a.waitUntil(1000);
+		//---------------------
 	}
 
 }
