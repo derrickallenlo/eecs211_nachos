@@ -12,7 +12,16 @@ import nachos.machine.*;
  * when both a speaker and a listener are waiting, because the two threads can
  * be paired off at this point.
  */
-public class Communicator {
+public class Communicator 
+{
+
+	//all initializations
+	private Lock conditionLock;//zero-length bounded buffer only one lock
+	private Condition2  conditionSpeaker; 
+	private Condition2  conditionListener; 
+	private LinkedList<KThread> waitQueueSpeaker;//multiple speakers 
+    private LinkedList<KThread> waitQueueListener;//multiple listeners
+	private int word;//word from Speaker to Listener
 	/**
 	 * Allocate a new communicator.
 	 */
@@ -35,8 +44,11 @@ public class Communicator {
 	 * 
 	 * @param word the integer to transfer.
 	 */
-	public void speak(int word) {
+	public void speak(int word) 
+	{
 		conditionLock.acquire();
+		this.word=word;
+		//System.out.println("updated word");
 		if (waitQueueListener.isEmpty())//no Listener
 		{
 			//wait in the queue until some Listener in the queue wakes this thread
@@ -46,10 +58,9 @@ public class Communicator {
 		else
 		{
 			//wakes Listener and send word to Listener
-			waitQueueListener.getFirst();//dequeue
+			waitQueueListener.removeFirst();//dequeue
 			conditionListener.wake();//speaker wakes listener	
 		}
-		this.word=word;
 		conditionLock.release();
 	}
 
@@ -59,19 +70,20 @@ public class Communicator {
 	 * 
 	 * @return the integer transferred.
 	 */
-	public int listen() {
+	public int listen() 
+	{
 		conditionLock.acquire();
 		if (waitQueueSpeaker.isEmpty())//no Speaker
 		{
+			//System.out.println("listener is waiting");
 			//wait in the queue until some Speaker in the queue wakes this thread
 			waitQueueListener.add(KThread.currentThread());
 			conditionListener.sleep();//release lock and reacquire the lock after sleep
-			
 		}
 		else
 		{
 		//wakes Speaker get word from Speaker
-			waitQueueSpeaker.getFirst();//dequeue
+			waitQueueSpeaker.removeFirst();//dequeue
 			conditionSpeaker.wake();//listener wakes speaker
 		}
 		conditionLock.release();
@@ -79,18 +91,24 @@ public class Communicator {
 	}
 	
 	/*test communicator*/
-	/*
+	
 	public static void selfTest() 
 	{
 		Communicator commu = new Communicator();
 		
 		KThread listenerThread = new KThread(new ListenTest(commu));
+		KThread listenerThread2 = new KThread(new ListenTest(commu));
 		KThread speakerThread = new KThread(new SpeakTest(commu,26));
+		KThread speakerThread2 = new KThread(new SpeakTest(commu,27));
 		
-		listenerThread.fork();
 		speakerThread.fork();
+		listenerThread.fork();	
+		
 		listenerThread.join();
 		speakerThread.join();
+		
+		listenerThread2.fork();
+		speakerThread2.fork();
 	}
 	private static class ListenTest implements Runnable {
 		ListenTest(Communicator oldcommu) 
@@ -124,12 +142,5 @@ public class Communicator {
 		private Communicator commu;
 		private int word;
 	}
-	*/
 	
-	private Lock conditionLock;//zero-length bounded buffer only one lock
-	private Condition2  conditionSpeaker; 
-	private Condition2  conditionListener; 
-	private LinkedList<KThread> waitQueueSpeaker;//multiple speakers 
-    private LinkedList<KThread> waitQueueListener;//multiple listeners
-	private int word;//word from Speaker to Listener
 }

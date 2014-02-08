@@ -13,7 +13,8 @@ import nachos.machine.*;
  * 
  * @see nachos.threads.Condition
  */
-public class Condition2 {
+public class Condition2 
+{
 	/**
 	 * Allocate a new condition variable.
 	 * 
@@ -21,7 +22,8 @@ public class Condition2 {
 	 * The current thread must hold this lock whenever it uses <tt>sleep()</tt>,
 	 * <tt>wake()</tt>, or <tt>wakeAll()</tt>.
 	 */
-	public Condition2(Lock conditionLock) {
+	public Condition2(Lock conditionLock)
+	{
 		this.conditionLock = conditionLock;
 		waitQueue = new LinkedList<KThread>();
 		//this.value = 0;
@@ -33,7 +35,8 @@ public class Condition2 {
 	 * thread must hold the associated lock. The thread will automatically
 	 * reacquire the lock before <tt>sleep()</tt> returns.
 	 */
-	public void sleep() {
+	public void sleep() 
+	{
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 
 		waitQueue.add(KThread.currentThread());//make current thread to waiting queue
@@ -58,7 +61,8 @@ public class Condition2 {
 	 * Wake up at most one thread sleeping on this condition variable. The
 	 * current thread must hold the associated lock.
 	 */
-	public void wake() {
+	public void wake() 
+	{
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 		if (!waitQueue.isEmpty())//make sure there is waiting thread
 		{
@@ -76,7 +80,8 @@ public class Condition2 {
 	 * Wake up all threads sleeping on this condition variable. The current
 	 * thread must hold the associated lock.
 	 */
-	public void wakeAll() {
+	public void wakeAll() 
+	{
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 		while (!waitQueue.isEmpty())//dequeue all waiting thread from Linked List
 		{
