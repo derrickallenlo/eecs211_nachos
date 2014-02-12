@@ -369,25 +369,13 @@ public class KThread
 	{
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 		Lib.assertTrue(this != currentThread);				//joining thread can't be joining current thread
-		//boolean intStatus = Machine.interrupt().disable();
-		//ArrayList<KThread> blockedList = new ArrayList<KThread>();
 		while (status != Status.STATUS_FINISHED)
 		{
 			if(currentThread != this)
 			{
-				
-				//blockedList.add(currentThread); 
 				yield();	//sleep()? to block?
 			}
 		}
-		
-//		for(KThread thread : blockedList)
-//		{
-//			thread.ready();
-//		}
-//
-//		Machine.interrupt().restore(intStatus);
-//		runNextThread();
 	}
 
 	/**
