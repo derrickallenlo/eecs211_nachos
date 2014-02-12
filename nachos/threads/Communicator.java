@@ -21,7 +21,7 @@ public class Communicator
 	private Condition2  conditionListener; 
 	private LinkedList<KThread> waitQueueSpeaker;//multiple speakers 
     private LinkedList<KThread> waitQueueListener;//multiple listeners
-	private int word;//word from Speaker to Listener
+	private LinkedList<Integer> word;//word from Speaker to Listener
 	/**
 	 * Allocate a new communicator.
 	 */
@@ -32,6 +32,7 @@ public class Communicator
 		conditionListener = new Condition2 (conditionLock); 
 		waitQueueSpeaker = new LinkedList<KThread>();
 		waitQueueListener = new LinkedList<KThread>();
+		word = new LinkedList<Integer>();
 	}
 
 	/**
@@ -47,7 +48,7 @@ public class Communicator
 	public void speak(int word) 
 	{
 		conditionLock.acquire();
-		this.word=word;
+		this.word.add(word);
 		//System.out.println("updated word");
 		if (waitQueueListener.isEmpty())//no Listener
 		{
@@ -87,7 +88,7 @@ public class Communicator
 			conditionSpeaker.wake();//listener wakes speaker
 		}
 		conditionLock.release();
-		return this.word;
+		return word.removeFirst();
 	}
 	
 	/*test communicator*/
@@ -102,6 +103,7 @@ public class Communicator
 		KThread speakerThread2 = new KThread(new SpeakTest(commu,27));
 		
 		speakerThread.fork();
+		
 		listenerThread.fork();	
 		
 		listenerThread.join();
@@ -109,6 +111,7 @@ public class Communicator
 		
 		listenerThread2.fork();
 		speakerThread2.fork();
+		
 	}
 	private static class ListenTest implements Runnable {
 		ListenTest(Communicator oldcommu) 

@@ -20,6 +20,7 @@ public class Boat
 	private static int numChildrenAtMolokai;
 	private static int totalAdults;
 	private static int totalChildren;
+	private static boolean isFinished;
 	
 	private static LinkedList<KThread> oahuAdultQueue;//Oahu island that holds adults
 	private static LinkedList<KThread> oahuChildrenQueue;//Oahu island that holds children
@@ -64,16 +65,18 @@ public class Boat
 		if (children <= 1)
 		{
 			System.out.println("Error: at least need two children");
+			return;
 		}
 		bg = b;
 		// Instantiate global variables here
+		isFinished = false;
 		lock = new Lock();//who takes action...one at the time
 		conditionAdult = new Condition(lock);
 		conditionChildAtOahu = new Condition(lock);
 		conditionChildAtMolokai = new Condition(lock);
 		
-		numAdultsAtOahu = children;//beginning all adults at Oahu
-		numChildrenAtOahu = adults;
+		numAdultsAtOahu = adults;//beginning all adults at Oahu
+		numChildrenAtOahu = children;
 		numAdultsAtMolokai = 0;
 		numChildrenAtMolokai = 0;
 		
@@ -93,17 +96,6 @@ public class Boat
 		conditionChildAtBoat = new Condition(lock);
 		
 		parentCondition = new Condition(lock);
-		// Create threads here. See section 3.4 of the Nachos for Java
-		// Walkthrough linked from the projects page.
-
-		/*Runnable r = new Runnable() {
-			public void run() {
-				SampleItinerary();
-			}
-		};
-		KThread t = new KThread(r);
-		t.setName("Sample Boat Thread");
-		t.fork();*/
 		
 		lock.acquire();
 		
@@ -185,25 +177,28 @@ public class Boat
 		while(true)
 		{
 			//System.out.println("in while loop");
-			//if(atMolokai)
-			//{
-			if(isFinished())//only at Molokai knows everyone arrive at Molokai
+			if(atMolokai)
 			{
-				//System.out.println("finished");
-				//wake up all waiting children at Molokai
-				if(molokaiChildrenQueue.isEmpty())
+				if(isFinished)//someone from Oahu that arrived to Molokai will announce that we are finished
 				{
-					parentCondition.wake();
-					break;
+					//System.out.println("finished");
+					//wake up all waiting children at Molokai
+					if(molokaiChildrenQueue.isEmpty())
+					{
+						parentCondition.wake();
+						break;
+					}
+					else
+					{
+						molokaiChildrenQueue.removeFirst();
+						conditionChildAtMolokai.wake();
+					}
 				}
 				else
 				{
-					molokaiChildrenQueue.removeFirst();
-					conditionChildAtMolokai.wake();
+					atMolokai = childDecisionAndRun(atMolokai);
 				}
 			}
-				//atMolokai = childDecisionAndRun(atMolokai);
-			//}
 			else
 			{
 				//System.out.println("child at Oahu");
@@ -214,7 +209,7 @@ public class Boat
 		lock.release();
 		
 	}
-	static boolean isFinished()
+	/*static boolean isFinished()
 	{
 		int total = totalChildren + totalAdults; 
 		if( (numAdultsAtMolokai + numChildrenAtMolokai) == total)
@@ -225,7 +220,7 @@ public class Boat
 		{
 			return false;
 		}
-	}
+	}*/
 	static boolean childDecisionAndRun(boolean atMolokai)
 	{
 		if(atMolokai && boatLocationStatus == boatAtMolokai && (boatStatusPilotSeat || boatStatusPassengerSeat))
@@ -261,6 +256,7 @@ public class Boat
 			if(boatStatusPilotSeat)
 			{
 				boatStatusPilotSeat = false;//get on the pilot seat
+				numChildrenAtOahu--;
 				
 				//only pilot child wake other child for the passenger
 				if(!oahuChildrenQueue.isEmpty())
@@ -273,7 +269,11 @@ public class Boat
 				boatChildrenQueue.add(KThread.currentThread());
 				conditionChildAtBoat.sleep();
 				
-				numChildrenAtOahu--;
+				if(numChildrenAtOahu == 0 && numAdultsAtOahu == 0)
+				{
+					isFinished = true;
+				}
+				
 				bg.ChildRowToMolokai();
 				atMolokai = true;//arrived to Mololkai
 				numChildrenAtMolokai++;
@@ -327,7 +327,7 @@ public class Boat
 		
 		return atMolokai;
 	}
-	static void SampleItinerary()
+	/*static void SampleItinerary()
 	{
 		// Please note that this isn't a valid solution (you can't fit
 		// all of them on the boat). Please also note that you may not
@@ -338,6 +338,6 @@ public class Boat
 		bg.ChildRideToMolokai();
 		bg.AdultRideToMolokai();
 		bg.ChildRideToMolokai();
-	}
+	}*/
 
 }
