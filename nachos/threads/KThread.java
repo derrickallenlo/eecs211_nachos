@@ -128,6 +128,7 @@ public class KThread
 	 * 
 	 * @param target the object whose <tt>run</tt> method is called.
 	 */
+
 	public KThread(Runnable target) 
 	{
 		this();
@@ -216,7 +217,8 @@ public class KThread
 
 		tcb.start(new Runnable() 
 		{
-			public void run() {
+			public void run()
+			{
 				runThread();
 			}
 		});
@@ -365,17 +367,22 @@ public class KThread
 	 * return immediately. This method must only be called once; the second call
 	 * is not guaranteed to return. This thread must not be the current thread.
 	 */
-	public void join() //TODO part 1
+	public void join() 
 	{
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
-		Lib.assertTrue(this != currentThread);				//joining thread can't be joining current thread
-		while (status != Status.STATUS_FINISHED)
+
+		Lib.assertTrue(this != currentThread);
+		
+		boolean intStatus = Machine.interrupt().disable();//block others
+		while (this.status != Status.STATUS_FINISHED )//make sure this thread must finish before leaving join()
 		{
 			if(currentThread != this)
 			{
-				yield();	//sleep()? to block?
+				//if current thread is not this thread, current thread yield this thread 
+				currentThread.yield();
 			}
 		}
+		Machine.interrupt().restore(intStatus);//let other run if this thread finished
 	}
 
 	/**
@@ -521,14 +528,23 @@ public class KThread
 		KThread t1 =new KThread(new PingTest(1)).setName("forked thread");
 		KThread t2 =new KThread(new PingTest(2)).setName("forked thread");
 		t1.fork();
-		t2.fork();
-		//t1.join();
-		//t2.join();
 		new PingTest(0).run();
+		
+		
 		//---------------------
 		Alarm a = new Alarm();
 		a.waitUntil(1000);
 		//---------------------
+		
+		//join test
+		t1.join();
+		
+		t2.fork();
+		Communicator.selfTest();//communicator and condition test
+		t2.join();
+		
+		Boat.selfTest();
+		
 	}
 
 }
