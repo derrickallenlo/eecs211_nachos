@@ -518,12 +518,85 @@ public class KThread
 		}
 
 	}
+        
+        private static class HelloWorldTest implements Runnable 
+	{
+		private int which;
+                private int priority;
+                
+		HelloWorldTest(int which, int priority) 
+		{
+			this.which = which;
+                        this.priority = priority;
+		}
+
+		public void run() 
+		{
+                    System.out.println("Thread " + which + " is executing with Priority: " + priority);
+		}
+
+	}
 
 	/**
 	 * Tests whether this module is working.
 	 */
 	public static void selfTest() 
-	{
+	{       
+                
+               /*****Priority Scheduler Self-Test*****/
+               System.out.println("+---------------------------------+");
+               System.out.println("+   Priority Scheduler Self Test  +");
+               System.out.println("+---------------------------------+");
+               PriorityScheduler s = new PriorityScheduler();
+               ThreadQueue testQueue = s.newThreadQueue(true);
+               
+               
+               System.out.println("+----       Test Case 1      -----+");
+               System.out.println("+ Verify Threads run in Priority  +");
+               System.out.println("+---------------------------------+");
+               System.out.println("  ");
+               System.out.println("1) Create/Run 2 threads with default Priority 1");
+               KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
+               KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
+
+               boolean intStatus = Machine.interrupt().disable();
+               
+               testQueue.waitForAccess(t1);
+               testQueue.waitForAccess(t2);
+               testQueue.nextThread().fork();
+               testQueue.nextThread().fork();
+               yield();
+               
+               
+               System.out.println("  ");
+               System.out.println("1) Create/Run 3 threads with multiple Priorities");
+               KThread t1b =new KThread(new HelloWorldTest(5, 5)).setName("Thread 5");
+               KThread t2b =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1a");
+               KThread t3b =new KThread(new HelloWorldTest(4, 4)).setName("Thread 4");
+               KThread t4b =new KThread(new HelloWorldTest(13, 1)).setName("Thread 1b");
+               
+               s.setPriority(t1b, 5);
+               testQueue.waitForAccess(t1b);
+               testQueue.waitForAccess(t2b);
+               s.setPriority(t3b, 4);
+               testQueue.waitForAccess(t3b);
+               testQueue.waitForAccess(t4b);
+               
+               testQueue.nextThread().fork();
+               testQueue.nextThread().fork();
+               testQueue.nextThread().fork();
+               testQueue.nextThread().fork();
+               
+               yield();
+               runNextThread();
+               Machine.interrupt().restore(intStatus);
+               
+               
+               
+            
+               
+            
+            /*
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
 		KThread t1 =new KThread(new PingTest(1)).setName("forked thread");
 		KThread t2 =new KThread(new PingTest(2)).setName("forked thread");
@@ -538,12 +611,12 @@ public class KThread
 		
 		//join test
 		t1.join();
-		
+		/*
 		t2.fork();
 		Communicator.selfTest();//communicator and condition test
 		t2.join();
 		
-		Boat.selfTest();
+		Boat.selfTest();*/
 		
 	}
 
