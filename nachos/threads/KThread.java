@@ -536,13 +536,6 @@ public class KThread
 		a.waitUntil(1000);
 		//---------------------
 		
-		//join test
-		t1.join();
-		
-		t2.fork();
-		Communicator.selfTest();//communicator and condition test
-		t2.join();
-		
 		Boat.selfTest();
 		
 	}

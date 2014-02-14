@@ -2,8 +2,6 @@ package nachos.threads;
 
 import java.util.LinkedList;
 
-import nachos.machine.*;
-
 
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
@@ -90,60 +88,4 @@ public class Communicator
 		conditionLock.release();
 		return word.removeFirst();
 	}
-	
-	/*test communicator*/
-	
-	public static void selfTest() 
-	{
-		Communicator commu = new Communicator();
-		
-		KThread listenerThread = new KThread(new ListenTest(commu));
-		KThread listenerThread2 = new KThread(new ListenTest(commu));
-		KThread speakerThread = new KThread(new SpeakTest(commu,26));
-		KThread speakerThread2 = new KThread(new SpeakTest(commu,27));
-		
-		speakerThread.fork();
-		
-		listenerThread.fork();	
-		
-		listenerThread.join();
-		speakerThread.join();
-		
-		listenerThread2.fork();
-		speakerThread2.fork();
-		
-	}
-	private static class ListenTest implements Runnable {
-		ListenTest(Communicator oldcommu) 
-		{
-			commu = oldcommu;
-		}
-		
-		public void run() 
-		{
-			System.out.println("Listener is listening");
-			int message = commu.listen();
-			System.out.println("Listener finished and word is " + message);
-		}
-
-		private Communicator commu;
-	}
-	private static class SpeakTest implements Runnable {
-		SpeakTest(Communicator oldcommu,int word) 
-		{
-			commu = oldcommu;
-			this.word = word;
-		}
-		
-		public void run() 
-		{
-			System.out.println("Speaker is speaking");
-			commu.speak(word);
-			System.out.println("Speaker finished");
-		}
-
-		private Communicator commu;
-		private int word;
-	}
-	
 }
