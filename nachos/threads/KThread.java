@@ -378,7 +378,17 @@ public class KThread
 		{
 			if(currentThread != this)
 			{
-				//if current thread is not this thread, current thread yield this thread 
+				//if current thread is not this thread, current thread yield this thread
+				if (currentThread.schedulingState instanceof PriorityScheduler.ThreadState)
+				{
+					PriorityScheduler.ThreadState currState = (PriorityScheduler.ThreadState) currentThread.schedulingState;
+					PriorityScheduler.ThreadState myState = (PriorityScheduler.ThreadState) this.schedulingState;
+					
+					System.out.println(this.name + "Priority before: " + myState.effectivePriority);
+					(currState).offerDonation(myState);
+					System.out.println(this.name + "Priority after: " + myState.effectivePriority);
+				
+				}
 				currentThread.yield();
 			}
 		}
@@ -502,7 +512,7 @@ public class KThread
 	private static class PingTest implements Runnable 
 	{
 		private int which;
-		
+
 		PingTest(int which) 
 		{
 			this.which = which;
@@ -518,21 +528,25 @@ public class KThread
 		}
 
 	}
-        
-        private static class HelloWorldTest implements Runnable 
+
+	private static class HelloWorldTest implements Runnable 
 	{
 		private int which;
-                private int priority;
-                
+		private int priority;
+
 		HelloWorldTest(int which, int priority) 
 		{
 			this.which = which;
-                        this.priority = priority;
+			this.priority = priority;
 		}
 
 		public void run() 
 		{
-                    System.out.println("Thread " + which + " is executing with Priority: " + priority);
+			for (int i = 0; i < 5; i++) 
+			{
+				System.out.println("Count" + i +"Thread " + which + " is executing with Priority: " + priority);
+				yield();
+			}
 		}
 
 	}
@@ -543,57 +557,111 @@ public class KThread
 	public static void selfTest() 
 	{       
                 
-               /*****Priority Scheduler Self-Test*****/
-               System.out.println("+---------------------------------+");
-               System.out.println("+   Priority Scheduler Self Test  +");
-               System.out.println("+---------------------------------+");
-               PriorityScheduler s = new PriorityScheduler();
-               ThreadQueue testQueue = s.newThreadQueue(true);
+//               /*****Priority Scheduler Self-Test*****/
+//               System.out.println("+---------------------------------+");
+//               System.out.println("+   Priority Scheduler Self Test  +");
+//               System.out.println("+---------------------------------+");
+//               PriorityScheduler s = new PriorityScheduler();
+//               ThreadQueue testQueue = s.newThreadQueue(true);
+//               
+//          
+//               System.out.println("+----       Test Case 1      -----+");
+//               System.out.println("+ Verify Threads run in Priority  +");
+//               System.out.println("+---------------------------------+");
+//               System.out.println("  ");
+//               System.out.println("1) Create/Run 2 threads with default Priority 1");
+//               KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
+//               KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
+//
+//               boolean intStatus = Machine.interrupt().disable();
+//               
+//               testQueue.waitForAccess(t1);
+//               testQueue.waitForAccess(t2);
+//               testQueue.nextThread().fork();
+//               testQueue.nextThread().fork();
+//               yield();
+//               
+//               
+//               System.out.println("  ");
+//               System.out.println("1) Create/Run 3 threads with multiple Priorities");
+//               KThread t1b =new KThread(new HelloWorldTest(5, 5)).setName("Thread 5");
+//               KThread t2b =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1a");
+//               KThread t3b =new KThread(new HelloWorldTest(4, 4)).setName("Thread 4");
+//               KThread t4b =new KThread(new HelloWorldTest(13, 1)).setName("Thread 1b");
+//               
+//               s.setPriority(t1b, 5);
+//               testQueue.waitForAccess(t1b);
+//               testQueue.waitForAccess(t2b);
+//               s.setPriority(t3b, 4);
+//               testQueue.waitForAccess(t3b);
+//               testQueue.waitForAccess(t4b);
+//               
+//               testQueue.nextThread().fork();
+//               testQueue.nextThread().fork();
+//               testQueue.nextThread().fork();
+//               testQueue.nextThread().fork();
+//               
+//               yield();
+//      //         runNextThread();
+//               Machine.interrupt().restore(intStatus);
                
-               
-               System.out.println("+----       Test Case 1      -----+");
-               System.out.println("+ Verify Threads run in Priority  +");
-               System.out.println("+---------------------------------+");
-               System.out.println("  ");
-               System.out.println("1) Create/Run 2 threads with default Priority 1");
-               KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
-               KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
-
-               boolean intStatus = Machine.interrupt().disable();
-               
-               testQueue.waitForAccess(t1);
-               testQueue.waitForAccess(t2);
-               testQueue.nextThread().fork();
-               testQueue.nextThread().fork();
-               yield();
-               
-               
-               System.out.println("  ");
-               System.out.println("1) Create/Run 3 threads with multiple Priorities");
-               KThread t1b =new KThread(new HelloWorldTest(5, 5)).setName("Thread 5");
-               KThread t2b =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1a");
-               KThread t3b =new KThread(new HelloWorldTest(4, 4)).setName("Thread 4");
-               KThread t4b =new KThread(new HelloWorldTest(13, 1)).setName("Thread 1b");
-               
-               s.setPriority(t1b, 5);
-               testQueue.waitForAccess(t1b);
-               testQueue.waitForAccess(t2b);
-               s.setPriority(t3b, 4);
-               testQueue.waitForAccess(t3b);
-               testQueue.waitForAccess(t4b);
-               
-               testQueue.nextThread().fork();
-               testQueue.nextThread().fork();
-               testQueue.nextThread().fork();
-               testQueue.nextThread().fork();
-               
-               yield();
-               runNextThread();
-               Machine.interrupt().restore(intStatus);
-               
-               
-               
-            
+     /*****Priority Scheduler Self-Test*****/
+      System.out.println("+---------------------------------+");
+      System.out.println("+   Priority Scheduler Self Test  +");
+      System.out.println("+---------------------------------+");
+      
+ 
+      System.out.println("+----       Test Case 1      -----+");
+      System.out.println("+ Verify Threads run in Priority  +");
+      System.out.println("+---------------------------------+");
+      System.out.println("  ");
+      System.out.println("1) Create/Run 2 threads with default Priority 1");
+      KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
+      KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
+      t1.fork();
+      t2.fork();
+      new PingTest(0).run();
+      
+      System.out.println("  ");
+      System.out.println("1) Create/Run 3 threads with multiple Priorities");
+      KThread t1b =new KThread(new HelloWorldTest(5, 5)).setName("Thread 5");
+      KThread t2b =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1a");
+      KThread t3b =new KThread(new HelloWorldTest(4, 4)).setName("Thread 4");
+      KThread t4b =new KThread(new HelloWorldTest(13, 1)).setName("Thread 1b");
+      
+      boolean intStatus = Machine.interrupt().disable();
+      ThreadedKernel.scheduler.setPriority(t1b, 5);
+      ThreadedKernel.scheduler.setPriority(t3b, 4);
+      Machine.interrupt().restore(intStatus);
+      
+      t1b.fork();
+      t2b.fork();
+      t3b.fork();
+      t4b.fork();
+      new PingTest(0).run();
+      
+      
+      
+//             System.out.println("+----       Test Case 2      -----+");
+//             System.out.println("+ Verify Threads run in Priority  +");
+//             System.out.println("+---------------------------------+");
+//             boolean intStatus = Machine.interrupt().disable();
+//             System.out.println("  ");
+//             System.out.println("1) Create/Run 3 threads with multiple Priorities");
+//             KThread t5 =new KThread(new HelloWorldTest(5, 5)).setName("Thread 5");
+//             KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
+//             
+//             s.setPriority(t5, 5);
+//             testQueue.waitForAccess(t5);
+//             testQueue.waitForAccess(t1);
+//             testQueue.nextThread().fork();
+//             testQueue.nextThread().fork();
+//             Machine.interrupt().restore(intStatus);
+//             new PingTest(2).run();
+//             t5.join();
+             
+           //  yield();
+           //  runNextThread();
                
             
             /*
