@@ -370,29 +370,22 @@ public class KThread
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 		Lib.assertTrue(this != currentThread);
 		
-		boolean intStatus = Machine.interrupt().disable();//block others
-            while (this.status != Status.STATUS_FINISHED)//make sure this thread must finish before leaving join()
-            {
-                if (currentThread != this)
-                {
-                    //if current thread is not this thread, current thread yield this thread
-//                        if (currentThread.schedulingState instanceof PriorityScheduler.ThreadState)
-//                        {
-//                            PriorityScheduler.ThreadState currState = (PriorityScheduler.ThreadState) currentThread.schedulingState;
-//                            PriorityScheduler.ThreadState myState = (PriorityScheduler.ThreadState) this.schedulingState;
-//
-//                            System.out.println(this.name + "Priority before: " + myState.effectivePriority);
-//                            (currState).offerDonation(myState);
-//                            System.out.println(this.name + "Priority after: " + myState.effectivePriority);
-//
-//                        }
-                    ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
-                    waitQueue.acquire(this);
-                    waitQueue.waitForAccess(currentThread);
-                    yield();
-                    }
+		boolean intStatus = Machine.interrupt().disable();
+
+		ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+		waitQueue.acquire(this);
+
+		while (this.status != Status.STATUS_FINISHED)		//this thread must finish
+		{
+			if (currentThread != this)
+			{                    
+				waitQueue.waitForAccess(this);				//preempt current thread
+				waitQueue.waitForAccess(currentThread);
+				yield();
+			}
 		}
-		Machine.interrupt().restore(intStatus);//let other run if this thread finished
+
+		Machine.interrupt().restore(intStatus);
 	}
 
 	/**
@@ -556,7 +549,7 @@ public class KThread
 	 */
 	public static void selfTest() 
 	{       
-            
+//            
 //            	System.out.println("---------PriorityScheduler test---------------------");
 //PriorityScheduler s = new PriorityScheduler();
 //ThreadQueue queue = s.newThreadQueue(true);
@@ -616,7 +609,7 @@ public class KThread
 //Machine.interrupt().restore(intStatus);
 //System.out.println("--------End PriorityScheduler test------------------");
 
-		boolean intStatus;
+	//	boolean intStatus;
 //               /*****Priority Scheduler Self-Test*****/
 //               System.out.println("+---------------------------------+");
 //               System.out.println("+   Priority Scheduler Self Test  +");
@@ -741,14 +734,16 @@ public class KThread
 		KThread t1 =new KThread(new PingTest(1)).setName("forked thread t1");
 		KThread t2 =new KThread(new PingTest(2)).setName("forked thread t2");
 		t1.fork();
-	//	t1.join();
+		t2.fork();
 		new PingTest(0).run();
-		
-		
-		//---------------------
 		Alarm a = new Alarm();
 		a.waitUntil(1000);
-		//---------------------
+		
+//		
+//		
+//		//---------------------
+
+//		//---------------------
 		
 		//join test
 		

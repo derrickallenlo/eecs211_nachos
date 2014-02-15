@@ -221,7 +221,7 @@ public class PriorityScheduler extends Scheduler
 					{
 						return null;
 					}
-					//print();								rid me!
+					
 					ThreadState head = queue.remove();
 					head.listOfQueues.remove(this);
 					return head.thread;
@@ -380,27 +380,24 @@ public class PriorityScheduler extends Scheduler
 		 public void waitForAccess(PriorityQueue waitQueue)
 		 {
 			 waitingTime = Machine.timer().getTime();
-			 boolean cheapHack = false;
 
 			 if (!waitQueue.queue.isEmpty())
 			 {
-				 if ( waitQueue.transferPriority)
-			 {
-				 startDonations(getEffectivePriority(), waitQueue.pickNextThread());
-			 }
-				 
+				 if (waitQueue.transferPriority)
+				 {
+					 startDonations(getEffectivePriority(), waitQueue.pickNextThread());
+				 }
+
+				 //TODO a cheap hack to stop main thread from taking over queue twice...but it seems to work fine
 				 if (waitQueue.pickNextThread().thread.equals(thread))
 				 {
-					 cheapHack = true;					//TODO a cheap hack to stop main thread from taking over queue twice...it's still broken tho
+					 waitQueue.nextThread();
+
 				 }
-				 
 			 }
-			 
-			 if (!cheapHack)
-			 {
-			 waitQueue.queue.add(this);                  //I am now a part of this queue (this should always happen if not for the cheap hack)
-			 }
-			 
+
+			 waitQueue.queue.add(this);                  //I am now a part of this queue
+
 			 if (!listOfQueues.contains(waitQueue))
 			 {
 				 listOfQueues.add(waitQueue);                //I am now waiting on a lock, used for priority inherit
