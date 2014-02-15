@@ -250,6 +250,8 @@ public class PriorityScheduler extends Scheduler
 				}
 	}
 
+	private static ArrayList<ThreadState> deadlockKiller;
+	
 	/**
 	 * The scheduling state of a thread. This should include the thread's
 	 * priority, its effective priority, any objects it owns, and the queue it's
@@ -319,67 +321,48 @@ public class PriorityScheduler extends Scheduler
 				return;
 			}
 
-			raiseHeadPriority();
+			startDonations( priority, this);
+			
 			this.priority = priority;
 			this.effectivePriority = priority;
-
 		}
 
-		private void raiseHeadPriority(int priority)
-		{
-			for (PriorityQueue queue : listOfQueues)
-			{
-				if (queue.transferPriority)
-				{
-					queue.pickNextThread().acceptDonation(priority);
-				}
-			}
-		}
-		
-		private void raiseHeadPriority()
-		{
-			for (PriorityQueue queue : listOfQueues)
-			{
-				if (queue.transferPriority)
-				{
-					offerDonation(queue.pickNextThread());
-				}
-			}
-		}
-		
-		/**
-		 * If I no longer want an offered donation, I shall discard
-		 */
-		 public void resetEffectivePriority()
+		 private void offerDonation(int newPriority, ThreadState masterThread)
 		 {
-			 effectivePriority = priority;
-		 }
-
-		 public void acceptDonation(ThreadState other)
-		 {
-			 if (other != this && other.hasGreaterPriorityThan(this))
+			 deadlockKiller.add(masterThread);
+			 if (masterThread.getEffectivePriority() == newPriority || masterThread.hasGreaterPriorityThan(newPriority))
 			 {
-				 raiseHeadPriority(other.getEffectivePriority());
-				 effectivePriority = other.getEffectivePriority();
+				 return;
 			 }
+			 
+			 for(PriorityQueue queue: masterThread.listOfQueues)
+			 {
+				 if (queue.transferPriority && !queue.queue.isEmpty())
+				 {
+					 ThreadState head = queue.pickNextThread();
+					 if(masterThread != head && !head.hasGreaterPriorityThan(newPriority)
+							 && !deadlockKiller.contains(head))
+					 {
+						 offerDonation(newPriority, head);
+					 }
+				 }
+			 }
+			 
+			 if (!masterThread.hasGreaterPriorityThan(newPriority))
+			 {
+				 masterThread.effectivePriority = newPriority;
+			 }
+			 
 		 }
 		 
-		 public void acceptDonation(int priority)
+		 private void startDonations(int newPriority, ThreadState masterThread)
 		 {
-			 if (!this.hasGreaterPriorityThan(priority))
+			 if (deadlockKiller == null)
 			 {
-				 this.raiseHeadPriority(priority);
-				 effectivePriority = priority;
+				 deadlockKiller = new ArrayList<ThreadState>();
 			 }
-		 }
-
-		 /**
-		  * If I am locked, I shall offer my priority as a donation
-		  * @param otherThread
-		  */
-		 public void offerDonation(ThreadState otherThread)
-		 {
-			 otherThread.acceptDonation(this);
+			 offerDonation(newPriority, masterThread);
+			 deadlockKiller.clear();
 		 }
 
 		 /**
@@ -400,14 +383,12 @@ public class PriorityScheduler extends Scheduler
 
 			 if (!waitQueue.queue.isEmpty() && waitQueue.transferPriority)
 			 {
-				 ThreadState masterThread = waitQueue.pickNextThread();
-				 masterThread.raiseHeadPriority(getEffectivePriority());
-				 offerDonation(masterThread);
+				 startDonations(getEffectivePriority(), waitQueue.pickNextThread());
 			 }
 			 waitQueue.queue.add(this);                  //I am now a part of this queue
 			 listOfQueues.add(waitQueue);                //I am now waiting on a lock, used for priority inherit
 		 }
-
+		 
 		 /**
 		  * Called when the associated thread has acquired access to whatever is
 		  * guarded by <tt>waitQueue</tt>. This can occur either as a result of
@@ -421,11 +402,7 @@ public class PriorityScheduler extends Scheduler
 		 public void acquire(PriorityQueue waitQueue)
 		 {
 			 Lib.assertTrue(waitQueue.queue.isEmpty());		//get Lock
-			 
-			 listOfQueues.add(waitQueue);
 			 waitQueue.queue.add(this);
-
-			 raiseHeadPriority();
 		 }
 
 		 @Override
@@ -435,12 +412,12 @@ public class PriorityScheduler extends Scheduler
 		 }
 
 
-		 public boolean hasGreaterPriorityThan(ThreadState other)
+		 private boolean hasGreaterPriorityThan(ThreadState other)
 		 {
 			 return hasGreaterPriorityThan(other.effectivePriority);
 		 }
 		 
-		 public boolean hasGreaterPriorityThan(int priority)
+		 private boolean hasGreaterPriorityThan(int priority)
 		 {
 			 return this.getEffectivePriority() > priority;
 		 }
