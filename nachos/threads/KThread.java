@@ -1,7 +1,5 @@
 package nachos.threads;
 
-import java.util.ArrayList;
-
 import nachos.machine.*;
 
 /**
@@ -370,27 +368,29 @@ public class KThread
 	public void join() 
 	{
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
-
 		Lib.assertTrue(this != currentThread);
 		
 		boolean intStatus = Machine.interrupt().disable();//block others
-		while (this.status != Status.STATUS_FINISHED )//make sure this thread must finish before leaving join()
-		{
-			if(currentThread != this)
-			{
-				//if current thread is not this thread, current thread yield this thread
-				if (currentThread.schedulingState instanceof PriorityScheduler.ThreadState)
-				{
-					PriorityScheduler.ThreadState currState = (PriorityScheduler.ThreadState) currentThread.schedulingState;
-					PriorityScheduler.ThreadState myState = (PriorityScheduler.ThreadState) this.schedulingState;
-					
-					System.out.println(this.name + "Priority before: " + myState.effectivePriority);
-					(currState).offerDonation(myState);
-					System.out.println(this.name + "Priority after: " + myState.effectivePriority);
-				
-				}
-				currentThread.yield();
-			}
+            while (this.status != Status.STATUS_FINISHED)//make sure this thread must finish before leaving join()
+            {
+                if (currentThread != this)
+                {
+                    //if current thread is not this thread, current thread yield this thread
+//                        if (currentThread.schedulingState instanceof PriorityScheduler.ThreadState)
+//                        {
+//                            PriorityScheduler.ThreadState currState = (PriorityScheduler.ThreadState) currentThread.schedulingState;
+//                            PriorityScheduler.ThreadState myState = (PriorityScheduler.ThreadState) this.schedulingState;
+//
+//                            System.out.println(this.name + "Priority before: " + myState.effectivePriority);
+//                            (currState).offerDonation(myState);
+//                            System.out.println(this.name + "Priority after: " + myState.effectivePriority);
+//
+//                        }
+                    ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+                    waitQueue.acquire(this);
+                    waitQueue.waitForAccess(currentThread);
+                    yield();
+                    }
 		}
 		Machine.interrupt().restore(intStatus);//let other run if this thread finished
 	}
@@ -544,7 +544,7 @@ public class KThread
 		{
 			for (int i = 0; i < 5; i++) 
 			{
-				System.out.println("Count" + i +"Thread " + which + " is executing with Priority: " + priority);
+				System.out.println(" Count " + i +" Thread " + which + " is executing with Priority: " + priority + ", "+ currentThread.name );
 				yield();
 			}
 		}
@@ -556,15 +556,74 @@ public class KThread
 	 */
 	public static void selfTest() 
 	{       
-                
-//               /*****Priority Scheduler Self-Test*****/
-//               System.out.println("+---------------------------------+");
-//               System.out.println("+   Priority Scheduler Self Test  +");
-//               System.out.println("+---------------------------------+");
-//               PriorityScheduler s = new PriorityScheduler();
-//               ThreadQueue testQueue = s.newThreadQueue(true);
-//               
-//          
+//            
+//            	System.out.println("---------PriorityScheduler test---------------------");
+//PriorityScheduler s = new PriorityScheduler();
+//ThreadQueue queue = s.newThreadQueue(true);
+//ThreadQueue queue2 = s.newThreadQueue(true);
+//ThreadQueue queue3 = s.newThreadQueue(true);
+//
+//KThread thread1 = new KThread();
+//KThread thread2 = new KThread();
+//KThread thread3 = new KThread();
+//KThread thread4 = new KThread();
+//KThread thread5 = new KThread();
+//thread1.setName("thread1");
+//thread2.setName("thread2");
+//thread3.setName("thread3");
+//thread4.setName("thread4");
+//thread5.setName("thread5");
+//
+//
+//boolean intStatus = Machine.interrupt().disable();
+//
+//queue3.acquire(thread1);
+//queue.acquire(thread1);
+//queue.waitForAccess(thread2);
+//queue2.acquire(thread4);
+//queue2.waitForAccess(thread1);
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//
+//s.getThreadState(thread2).setPriority(3);
+//
+//System.out.println("After setting thread2's EP=3:");
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//
+//queue.waitForAccess(thread3);
+//s.getThreadState(thread1).setPriority(5);
+//
+//System.out.println("After adding thread1 with EP=5:");
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+//System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//
+//s.getThreadState(thread1).setPriority(2);
+//
+//System.out.println("After setting thread1 EP=2:");
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+//System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//
+//System.out.println("Thread1 acquires queue and queue3");
+//
+//Machine.interrupt().restore(intStatus);
+//System.out.println("--------End PriorityScheduler test------------------");
+
+		boolean intStatus;
+               /*****Priority Scheduler Self-Test*****/
+               System.out.println("+---------------------------------+");
+               System.out.println("+   Priority Scheduler Self Test  +");
+               System.out.println("+---------------------------------+");
+               PriorityScheduler s = new PriorityScheduler();
+               ThreadQueue testQueue = s.newThreadQueue(true);
+               
+          
 //               System.out.println("+----       Test Case 1      -----+");
 //               System.out.println("+ Verify Threads run in Priority  +");
 //               System.out.println("+---------------------------------+");
@@ -573,13 +632,13 @@ public class KThread
 //               KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
 //               KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
 //
-//               boolean intStatus = Machine.interrupt().disable();
-//               
+              intStatus=  Machine.interrupt().disable();
 //               testQueue.waitForAccess(t1);
 //               testQueue.waitForAccess(t2);
 //               testQueue.nextThread().fork();
 //               testQueue.nextThread().fork();
 //               yield();
+//               runNextThread();
 //               
 //               
 //               System.out.println("  ");
@@ -590,20 +649,22 @@ public class KThread
 //               KThread t4b =new KThread(new HelloWorldTest(13, 1)).setName("Thread 1b");
 //               
 //               s.setPriority(t1b, 5);
-//               testQueue.waitForAccess(t1b);
+//               testQueue.acquire(t1b);
 //               testQueue.waitForAccess(t2b);
 //               s.setPriority(t3b, 4);
-//               testQueue.waitForAccess(t3b);
+//               testQueue.acquire(t3b);
 //               testQueue.waitForAccess(t4b);
-//               
-//               testQueue.nextThread().fork();
-//               testQueue.nextThread().fork();
-//               testQueue.nextThread().fork();
-//               testQueue.nextThread().fork();
-//               
-//               yield();
-//      //         runNextThread();
 //               Machine.interrupt().restore(intStatus);
+//               
+//               t1b.fork();
+//               t2b.fork();
+//               t3b.fork();
+//               t4b.fork();
+//               new HelloWorldTest(0, 1).run();
+               
+            //   yield();
+            //   runNextThread();
+               
                
      /*****Priority Scheduler Self-Test*****/
       System.out.println("+---------------------------------+");
@@ -620,7 +681,10 @@ public class KThread
       KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
       t1.fork();
       t2.fork();
-      new PingTest(0).run();
+      intStatus = Machine.interrupt().disable();
+      readyQueue.print();
+      Machine.interrupt().restore(intStatus);
+      new HelloWorldTest(0, 1).run();
       
       System.out.println("  ");
       System.out.println("1) Create/Run 3 threads with multiple Priorities");
@@ -629,17 +693,24 @@ public class KThread
       KThread t3b =new KThread(new HelloWorldTest(4, 4)).setName("Thread 4");
       KThread t4b =new KThread(new HelloWorldTest(13, 1)).setName("Thread 1b");
       
-      boolean intStatus = Machine.interrupt().disable();
+      intStatus = Machine.interrupt().disable();
       ThreadedKernel.scheduler.setPriority(t1b, 5);
       ThreadedKernel.scheduler.setPriority(t3b, 4);
       Machine.interrupt().restore(intStatus);
       
       t1b.fork();
+//       intStatus = Machine.interrupt().disable();
+//        readyQueue.acquire(t1b);
+//      Machine.interrupt().restore(intStatus);
+//         yield();
       t2b.fork();
       t3b.fork();
       t4b.fork();
-      new PingTest(0).run();
-      
+      intStatus = Machine.interrupt().disable();
+      readyQueue.print();
+      Machine.interrupt().restore(intStatus);
+      new HelloWorldTest(0, 1).run();
+  
       
       
 //             System.out.println("+----       Test Case 2      -----+");

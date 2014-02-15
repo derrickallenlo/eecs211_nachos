@@ -1,5 +1,6 @@
 package nachos.threads;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 
 import nachos.machine.*;
@@ -154,9 +155,9 @@ public class PriorityScheduler extends Scheduler
 			@Override
 			public int compare(ThreadState t1, ThreadState t2) 
 			{
-					if (t1.getEffectivePriority() < t2.getEffectivePriority())
+					if (t2.hasGreaterPriorityThan(t1))
 					{
-						return -1;
+						return 1;
 					}
 					else if (t1.getEffectivePriority() == t2.getEffectivePriority()) 
 					{
@@ -172,7 +173,7 @@ public class PriorityScheduler extends Scheduler
 					}
 					else 
 					{
-						return 1;
+						return -1;
 					}
 			}
 		};
@@ -182,14 +183,15 @@ public class PriorityScheduler extends Scheduler
 		 * threads to the owning thread.
 		 */
 		public boolean transferPriority;
-		private java.util.PriorityQueue<ThreadState> waitQueue;
+		private java.util.PriorityQueue<ThreadState> queue;
 		
 		PriorityQueue(boolean transferPriority) 
 		{
 			this.transferPriority = transferPriority;
-			waitQueue = new java.util.PriorityQueue<ThreadState>(10, threadComparator);
+			queue = new java.util.PriorityQueue<ThreadState>(10, threadComparator);
 		}
 
+                 @Override
 		public void waitForAccess(KThread thread)
 		{
 			Lib.assertTrue(Machine.interrupt().disabled());
@@ -199,6 +201,7 @@ public class PriorityScheduler extends Scheduler
 		/**
 		 * Notifies thread queue that it has received access
 		 */
+                @Override
 		public void acquire(KThread thread)
 		{
 			Lib.assertTrue(Machine.interrupt().disabled());
@@ -210,16 +213,19 @@ public class PriorityScheduler extends Scheduler
 		 * 
 		 * @return the next thread that has the highest priority
 		 */
+                @Override
 		public KThread nextThread() 
 		{
 			Lib.assertTrue(Machine.interrupt().disabled());
 
-			if (waitQueue.isEmpty())
+			if (queue.isEmpty())
 			{
 				return null;
 			}
 			//System.out.print("\n Next Thread is: " + waitQueue.peek().thread.getName() + "\n");
-			return waitQueue.remove().thread;
+			ThreadState head = queue.remove();
+                        head.listOfQueues.remove(this);
+                        return head.thread;
 		}
 
 		/**
@@ -230,16 +236,16 @@ public class PriorityScheduler extends Scheduler
 		 */
 		protected ThreadState pickNextThread() 
 		{
-			return waitQueue.peek();
+			return queue.peek();
 		}
 
 		public void print() 
 		{
 			Lib.assertTrue(Machine.interrupt().disabled());
 
-			for (Iterator<ThreadState> i = waitQueue.iterator(); i.hasNext();)
+			for (Iterator<ThreadState> i = queue.iterator(); i.hasNext();)
 			{
-				System.out.print(i.next() + " ");
+				System.out.print(i.next());
 			}
 		}
 	}
@@ -264,7 +270,7 @@ public class PriorityScheduler extends Scheduler
 
 		/** The duration of time the thread has been waiting on waitQueue. */
 		protected long waitingTime;
-		private PriorityQueue waitQueue;
+		private ArrayList<PriorityQueue> listOfQueues;
 
 		/**
 		 * Allocate a new <tt>ThreadState</tt> object and associate it with the
@@ -274,9 +280,11 @@ public class PriorityScheduler extends Scheduler
 		 */
 		public ThreadState(KThread thread) 
 		{
+                        listOfQueues = new ArrayList<PriorityQueue>();
 			this.thread = thread;
-			this.waitingTime = Machine.timer().getTime();
+			waitingTime = Machine.timer().getTime();
 			setPriority(DEFAULT_PRIORITY);
+                       
 		}
 
 		/**
@@ -307,12 +315,24 @@ public class PriorityScheduler extends Scheduler
 		public void setPriority(int priority)
 		{
 			if (this.priority == priority)
+                        {
 				return;
+                        }
 
 			this.priority = priority;
 			this.effectivePriority = priority;
+                        
+                        raiseHeadPriority();
 		}
 		
+            private void raiseHeadPriority()
+            {
+                for (PriorityQueue other : listOfQueues)
+                {
+                    offerDonation(other.pickNextThread());
+                }
+            }
+                
 		/**
 		 * If I no longer want an offered donation, I shall discard
 		 */
@@ -321,11 +341,11 @@ public class PriorityScheduler extends Scheduler
 			effectivePriority = priority;
 		}
 		
-		public void acceptDonation(int priority)
+		public void acceptDonation(ThreadState other)
 		{
-			if (waitQueue.transferPriority && priority > effectivePriority)
+			if (other.hasGreaterPriorityThan(this))
 			{
-				effectivePriority = priority;
+				effectivePriority = other.getEffectivePriority();
 			}
 		}
 		
@@ -335,7 +355,7 @@ public class PriorityScheduler extends Scheduler
 		 */
 		public void offerDonation(ThreadState otherThread)
 		{
-			otherThread.acceptDonation(effectivePriority);
+			otherThread.acceptDonation(this);
 		}
 
 		/**
@@ -350,11 +370,17 @@ public class PriorityScheduler extends Scheduler
 		 * 
 		 * @see nachos.threads.ThreadQueue#waitForAccess
 		 */
-		public void waitForAccess(PriorityQueue waitQueue) 
-		{
-			this.waitQueue = waitQueue;
-			waitQueue.waitQueue.add(this);
-		}
+	    public void waitForAccess(PriorityQueue waitQueue)
+            {
+                waitingTime = Machine.timer().getTime();
+
+                if (!waitQueue.queue.isEmpty())
+                {
+                    offerDonation(waitQueue.pickNextThread());
+                }
+                waitQueue.queue.add(this);                  //I am now a part of this queue
+                listOfQueues.add(waitQueue);                //I am now waiting on a lock, used for priority inherit
+            }
 
 		/**
 		 * Called when the associated thread has acquired access to whatever is
@@ -366,11 +392,24 @@ public class PriorityScheduler extends Scheduler
 		 * @see nachos.threads.ThreadQueue#acquire
 		 * @see nachos.threads.ThreadQueue#nextThread
 		 */
-		public void acquire(PriorityQueue waitQueue) 
+		public void acquire(PriorityQueue waitQueue)
 		{
-			this.waitQueue = waitQueue;
-			//TODO
-			//waitQueue.waitQueue.remove(this);
+                       listOfQueues.add(waitQueue);
+                       waitQueue.queue.add(this);
+                       acceptDonation(waitQueue.pickNextThread());
+                       raiseHeadPriority();
 		}
+		
+                @Override
+		public String toString()
+		{
+			return String.format("Name: %s Eff Priority: %d%n", thread.getName(), effectivePriority);
+		}
+                
+                
+                public boolean hasGreaterPriorityThan(ThreadState other)
+                {
+                    return this.getEffectivePriority() > other.effectivePriority;
+                }
 	}
 }
