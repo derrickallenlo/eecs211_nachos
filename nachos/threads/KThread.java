@@ -633,7 +633,7 @@ public class KThread
 //               KThread t1 =new KThread(new HelloWorldTest(1, 1)).setName("Thread 1");
 //               KThread t2 =new KThread(new HelloWorldTest(2, 1)).setName("Thread 2");
 //
-              intStatus=  Machine.interrupt().disable();
+  //            intStatus=  Machine.interrupt().disable();
 //               testQueue.waitForAccess(t1);
 //               testQueue.waitForAccess(t2);
 //               testQueue.nextThread().fork();
@@ -736,11 +736,12 @@ public class KThread
            //  runNextThread();
                
             
-            /*
+            
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
-		KThread t1 =new KThread(new PingTest(1)).setName("forked thread");
-		KThread t2 =new KThread(new PingTest(2)).setName("forked thread");
+		KThread t1 =new KThread(new PingTest(1)).setName("forked thread t1");
+		KThread t2 =new KThread(new PingTest(2)).setName("forked thread t2");
 		t1.fork();
+	//	t1.join();
 		new PingTest(0).run();
 		
 		
@@ -750,13 +751,13 @@ public class KThread
 		//---------------------
 		
 		//join test
-		t1.join();
-		/*
-		t2.fork();
-		Communicator.selfTest();//communicator and condition test
-		t2.join();
 		
-		Boat.selfTest();*/
+//		
+//		t2.fork();
+//		Communicator.selfTest();//communicator and condition test
+//		t2.join();
+//		
+//		Boat.selfTest();
 		
 	}
 

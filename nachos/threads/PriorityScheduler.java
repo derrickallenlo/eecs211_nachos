@@ -35,7 +35,6 @@ public class PriorityScheduler extends Scheduler
 	//The minimum priority that a thread can have. Do not change this value.
 	public static final int MINIMUM_PRIORITY = 0;
 
-
 	// The maximum priority that a thread can have. Do not change this value.
 	public static final int MAXIMUM_PRIORITY = 7;
 
@@ -222,7 +221,7 @@ public class PriorityScheduler extends Scheduler
 					{
 						return null;
 					}
-					//System.out.print("\n Next Thread is: " + waitQueue.peek().thread.getName() + "\n");
+					//print();								rid me!
 					ThreadState head = queue.remove();
 					head.listOfQueues.remove(this);
 					return head.thread;
@@ -242,11 +241,12 @@ public class PriorityScheduler extends Scheduler
 				public void print() 
 				{
 					Lib.assertTrue(Machine.interrupt().disabled());
-
+					System.out.println("  Start");
 					for (Iterator<ThreadState> i = queue.iterator(); i.hasNext();)
 					{
 						System.out.print(i.next());
 					}
+					System.out.println("  End");
 				}
 	}
 
@@ -380,13 +380,31 @@ public class PriorityScheduler extends Scheduler
 		 public void waitForAccess(PriorityQueue waitQueue)
 		 {
 			 waitingTime = Machine.timer().getTime();
+			 boolean cheapHack = false;
 
-			 if (!waitQueue.queue.isEmpty() && waitQueue.transferPriority)
+			 if (!waitQueue.queue.isEmpty())
+			 {
+				 if ( waitQueue.transferPriority)
 			 {
 				 startDonations(getEffectivePriority(), waitQueue.pickNextThread());
 			 }
-			 waitQueue.queue.add(this);                  //I am now a part of this queue
-			 listOfQueues.add(waitQueue);                //I am now waiting on a lock, used for priority inherit
+				 
+				 if (waitQueue.pickNextThread().thread.equals(thread))
+				 {
+					 cheapHack = true;					//TODO a cheap hack to stop main thread from taking over queue twice...it's still broken tho
+				 }
+				 
+			 }
+			 
+			 if (!cheapHack)
+			 {
+			 waitQueue.queue.add(this);                  //I am now a part of this queue (this should always happen if not for the cheap hack)
+			 }
+			 
+			 if (!listOfQueues.contains(waitQueue))
+			 {
+				 listOfQueues.add(waitQueue);                //I am now waiting on a lock, used for priority inherit
+			 }
 		 }
 		 
 		 /**
@@ -408,7 +426,7 @@ public class PriorityScheduler extends Scheduler
 		 @Override
 		 public String toString()
 		 {
-			 return String.format("Name: %s Eff Priority: %d%n", thread.getName(), effectivePriority);
+			 return String.format("    Name: %s Eff Priority: %d%n", thread.getName(), effectivePriority);
 		 }
 
 
