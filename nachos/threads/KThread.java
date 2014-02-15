@@ -737,6 +737,7 @@ public class KThread
 		new PingTest(0).run();
 		
 		
+		
 		//---------------------
 		Alarm a = new Alarm();
 		a.waitUntil(1000);
