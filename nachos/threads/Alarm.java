@@ -46,7 +46,7 @@ public class Alarm
 		for(int i = 0; i<blockedTimeList.size(); i++)
 		{
 			Long time = blockedTimeList.get(i);
-			if (time > getTime())
+			if (time < getTime())
 			{
 				Lib.debug(KThread.dbgThread, "Releasing a thread");
 				blockedTimeList.remove(i);

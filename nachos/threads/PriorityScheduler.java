@@ -53,11 +53,13 @@ public class PriorityScheduler extends Scheduler
 	 * priority from waiting threads to the owning thread.
 	 * @return a new priority thread queue.
 	 */
+        @Override
 	public ThreadQueue newThreadQueue(boolean transferPriority) 
 	{
 		return new PriorityQueue(transferPriority);
 	}
 
+        @Override
 	public int getPriority(KThread thread) 
 	{
 		Lib.assertTrue(Machine.interrupt().disabled());
@@ -65,6 +67,7 @@ public class PriorityScheduler extends Scheduler
 		return getThreadState(thread).getPriority();
 	}
 
+        @Override
 	public int getEffectivePriority(KThread thread) 
 	{
 		Lib.assertTrue(Machine.interrupt().disabled());
@@ -72,6 +75,7 @@ public class PriorityScheduler extends Scheduler
 		return getThreadState(thread).getEffectivePriority();
 	}
 
+        @Override
 	public void setPriority(KThread thread, int priority) 
 	{
 		Lib.assertTrue(Machine.interrupt().disabled());
@@ -82,6 +86,7 @@ public class PriorityScheduler extends Scheduler
 		getThreadState(thread).setPriority(priority);
 	}
 
+        @Override
 	public boolean increasePriority() 
 	{
 		boolean intStatus = Machine.interrupt().disable();
@@ -103,6 +108,7 @@ public class PriorityScheduler extends Scheduler
 		return ret;
 	}
 
+        @Override
 	public boolean decreasePriority() 
 	{
 		boolean intStatus = Machine.interrupt().disable();
@@ -182,6 +188,7 @@ public class PriorityScheduler extends Scheduler
 				 */
 				public boolean transferPriority;
 				private java.util.PriorityQueue<ThreadState> queue;
+                                protected ThreadState activeThreadState;
 
 				PriorityQueue(boolean transferPriority) 
 				{
@@ -215,16 +222,27 @@ public class PriorityScheduler extends Scheduler
 				public KThread nextThread() 
 				{
 					Lib.assertTrue(Machine.interrupt().disabled());
-
+                                            
 					if (queue.isEmpty())
 					{
 						return null;
 					}
 					
 					ThreadState head = queue.remove();
+                                        activeThreadState = head;
 					head.listOfQueues.remove(this);
 					return head.thread;
 				}
+                                
+                                
+                                /**
+                                 * Signifies however is not waiting but at head of queue
+                                 * @param thread 
+                                 */
+                                protected void setActiveThread(ThreadState thread)
+                                {
+                                    this.activeThreadState = thread;
+                                }
 
 				/**
 				 * Return the next thread that <tt>nextThread()</tt> would return,
@@ -234,16 +252,19 @@ public class PriorityScheduler extends Scheduler
 				 */
 				protected ThreadState pickNextThread() 
 				{
-					return queue.peek();
-				}
+                                    return queue.peek();
+                                }
+				
 
+                                @Override
 				public void print() 
 				{
 					Lib.assertTrue(Machine.interrupt().disabled());
 					System.out.println("  Start");
+                                        System.out.print("     Head: " + activeThreadState);
 					for (Iterator<ThreadState> i = queue.iterator(); i.hasNext();)
 					{
-						System.out.print(i.next());
+						System.out.print("        "+i.next());
 					}
 					System.out.println("  End");
 				}
@@ -338,11 +359,11 @@ public class PriorityScheduler extends Scheduler
 			 {
 				 if (queue.transferPriority && !queue.queue.isEmpty())
 				 {
-					 ThreadState head = queue.pickNextThread();
-					 if(masterThread != head && !head.hasGreaterPriorityThan(newPriority)
-							 && !deadlockKiller.contains(head))
+					 ThreadState activeThread = queue.activeThreadState;
+					 if(masterThread != activeThread && !activeThread.hasGreaterPriorityThan(newPriority)
+							 && !deadlockKiller.contains(activeThread))
 					 {
-						 offerDonation(newPriority, head);
+						 offerDonation(newPriority, activeThread);
 					 }
 				 }
 			 }
@@ -387,12 +408,6 @@ public class PriorityScheduler extends Scheduler
 					 startDonations(getEffectivePriority(), waitQueue.pickNextThread());
 				 }
 
-				 //TODO a cheap hack to stop main thread from taking over queue twice...but it seems to work fine
-				 if (waitQueue.pickNextThread().thread.equals(thread))
-				 {
-					 waitQueue.nextThread();
-
-				 }
 			 }
 
 			 waitQueue.queue.add(this);                  //I am now a part of this queue
@@ -410,13 +425,14 @@ public class PriorityScheduler extends Scheduler
 		  * <tt>thread</tt> is the associated thread), or as a result of
 		  * <tt>nextThread()</tt> being invoked on <tt>waitQueue</tt>.
 		  * 
+                  * @param waitQueue
 		  * @see nachos.threads.ThreadQueue#acquire
 		  * @see nachos.threads.ThreadQueue#nextThread
 		  */
 		 public void acquire(PriorityQueue waitQueue)
 		 {
 			 Lib.assertTrue(waitQueue.queue.isEmpty());		//get Lock
-			 waitQueue.queue.add(this);
+			 waitQueue.setActiveThread(this);
 		 }
 
 		 @Override
@@ -435,6 +451,5 @@ public class PriorityScheduler extends Scheduler
 		 {
 			 return this.getEffectivePriority() > priority;
 		 }
-		 
 	}
 }
