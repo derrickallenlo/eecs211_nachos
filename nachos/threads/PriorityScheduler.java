@@ -256,7 +256,7 @@ public class PriorityScheduler extends Scheduler
                                 }
 				
 
-                                @Override
+                @Override
 				public void print() 
 				{
 					Lib.assertTrue(Machine.interrupt().disabled());
@@ -340,7 +340,7 @@ public class PriorityScheduler extends Scheduler
 			{
 				return;
 			}
-
+			
 			startDonations( priority, this);
 			
 			this.priority = priority;
