@@ -549,79 +549,106 @@ public class KThread
 	 */
 	public static void selfTest() 
 	{       
-            	System.out.println("---------LotteryScheduler test---------------------");
-LotteryScheduler s = new LotteryScheduler();
-ThreadQueue queue = s.newThreadQueue(true);
-ThreadQueue queue2 = s.newThreadQueue(true);
-
-KThread thread1 = new KThread();
-KThread thread2 = new KThread();
-KThread thread3 = new KThread();
-KThread thread4 = new KThread();
-KThread thread5 = new KThread();
-thread1.setName("thread1");
-thread2.setName("thread2");
-thread3.setName("thread3");
-thread4.setName("thread4");
-thread5.setName("thread5");
-
-
-boolean intStatus = Machine.interrupt().disable();
-
-queue.acquire(thread1);
-queue.waitForAccess(thread2);
-queue.waitForAccess(thread3);
-System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
-System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
-System.out.println("~~~~~~~~Thread4 aquires queue2 thread1 waits~~~~~~~~~`");
-queue2.acquire(thread4);
-queue2.waitForAccess(thread1);
-System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
-System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-System.out.println("~~~~~~~~thread2 priority changed to 2~~~~~~~~~`");
-s.getThreadState(thread2).setPriority(2);
-
-System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
-System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-System.out.println("~~~~~~~~thread2 priority changed to 1~~~~~~~~~`");
-s.getThreadState(thread2).setPriority(1);
-System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
-System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-System.out.println("~~~~~~~~Thread5 waits on queue1~~~~~~~~~`");
-queue.waitForAccess(thread5);
-System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
-System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-System.out.println("~~~~~~~~thread2 priority changed to 8~~~~~~~~~`");
-s.getThreadState(thread2).setPriority(8);
-System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
-System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-ThreadQueue newQueue;
-
-            KThread thread10;
-            int tot10 = 0;
-            KThread thread20;
-            int tot20 = 0;
-            for (int i = 0; i < 999; i++)
-            {
-                newQueue = s.newThreadQueue(true);
-                thread10 = new KThread();
-                thread20 = new KThread();
-                newQueue.acquire(thread10);
-                newQueue.waitForAccess(thread20);
-                if (newQueue.nextThread() == thread10)
-                {
-                    tot10 += 1;
-                }
-                else
-                {
-                    tot20 += 1;
-                }
-            }
-
-System.out.println("thread1 Total = " + tot10);
-System.out.println("thread2 Total = " + tot20);
-		
+//            System.out.println("~~~~~~~~testing the fork~~~~~~~~~`");
+//KThread thread11 = new KThread(new PingTest(1));
+//KThread thread21 = new KThread(new PingTest(2));
+//KThread thread31 = new KThread(new PingTest(3));
+//KThread thread41 = new KThread(new PingTest(4));
+//KThread thread51 = new KThread(new PingTest(5));
+//thread11.setName("thread1");
+//thread21.setName("thread2");
+//thread31.setName("thread3");
+//thread41.setName("thread4");
+//thread51.setName("thread5");
+//thread11.fork();
+//thread21.fork();
+//thread31.fork();
+//thread41.fork();
+//thread51.fork();
+//new PingTest(0).run();
+//            	System.out.println("---------LotteryScheduler test---------------------");
+//LotteryScheduler s = new LotteryScheduler();
+//ThreadQueue queue = s.newThreadQueue(true);
+//ThreadQueue queue2 = s.newThreadQueue(true);
+//
+//KThread thread1 = new KThread(new PingTest(1));
+//KThread thread2 = new KThread(new PingTest(2));
+//KThread thread3 = new KThread(new PingTest(3));
+//KThread thread4 = new KThread(new PingTest(4));
+//KThread thread5 = new KThread(new PingTest(5));
+//thread1.setName("thread1");
+//thread2.setName("thread2");
+//thread3.setName("thread3");
+//thread4.setName("thread4");
+//thread5.setName("thread5");
+//
+//
+//boolean intStatus = Machine.interrupt().disable();
+//
+//queue.acquire(thread1);
+//queue.waitForAccess(thread2);
+//queue.waitForAccess(thread3);
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+//System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+//System.out.println("~~~~~~~~Thread4 aquires queue2 thread1 waits~~~~~~~~~`");
+//queue2.acquire(thread4);
+//queue2.waitForAccess(thread1);
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("~~~~~~~~thread2 priority changed to 2~~~~~~~~~`");
+//s.getThreadState(thread2).setPriority(2);
+//
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("~~~~~~~~thread2 priority changed to 1~~~~~~~~~`");
+//s.getThreadState(thread2).setPriority(1);
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("~~~~~~~~Thread5 waits on queue1~~~~~~~~~`");
+//queue.waitForAccess(thread5);
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//System.out.println("~~~~~~~~thread2 priority changed to 8~~~~~~~~~`");
+//s.getThreadState(thread2).setPriority(8);
+//System.out.println("thread5 EP="+s.getThreadState(thread5).getEffectivePriority());
+//System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+//System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+//System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+//System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+//thread1.fork();
+//thread2.fork();
+//thread3.fork();
+//thread4.fork();
+//thread5.fork();
+//new PingTest(0).run();
+//System.out.println("~~~~~~~~running a random test, t1 has double priority ~~~~~~~~~`");
+//ThreadQueue newQueue;
+//            KThread thread10;
+//            int tot10 = 0;
+//            KThread thread20;
+//            int tot20 = 0;
+//            for (int i = 0; i < 1000; i++)
+//            {
+//                newQueue = s.newThreadQueue(true);
+//                thread10 = new KThread();
+//                thread20 = new KThread();
+//                newQueue.waitForAccess(thread10);
+//                newQueue.waitForAccess(thread20);
+//                if (newQueue.nextThread() == thread10)
+//                {
+//                    tot10 += 1;
+//                }
+//                else
+//                {
+//                    tot20 += 1;
+//                }
+//            }
+//
+//System.out.println("thread1 Total = " + tot10);
+//System.out.println("thread2 Total = " + tot20);
+//		
+//Machine.interrupt().restore(intStatus);
 	}
 
 }

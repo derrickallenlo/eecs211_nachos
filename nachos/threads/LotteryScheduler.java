@@ -1,14 +1,9 @@
 package nachos.threads;
 
 import nachos.machine.*;
-import nachos.threads.PriorityScheduler.PriorityQueue;
-import nachos.threads.PriorityScheduler.ThreadState;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.Random;
-import java.util.TreeSet;
-import java.util.HashSet;
 import java.util.Iterator;
 
 /**
@@ -86,51 +81,75 @@ public class LotteryScheduler extends PriorityScheduler
 			maxList = new ArrayList<Integer>();
 		}
 
-		@Override
-		public KThread nextThread() 
-		{
-			Lib.assertTrue(Machine.interrupt().disabled());
-			ThreadState winner = null;
-            
-			if (queue.isEmpty())
-			{
-				return null;
-			}
-			
-			/**
-			 *  Based on the number tickets owned per thread, give each thread that many tickets
-			 *  then randomly choose a ticket and find the winner!
-			 *  
-			 *  Example) Threads have this many tickets: 1 1 3 4 1 1 2
-			 *           1. Create an Array of [1 2 5 9 10 11 13]
-			 *           2.  Randomly choose winning ticket #9 -> 5th thread wins!
-			 *           3. Randomly choose winning ticket #0 -> 1st thread wins!
-			 *           Note: Ticket #13 can never be chosen!
-			 */
-			maxList.clear();
-			int counter = 0;
-			for(ThreadState t : queue)
-			{
-				counter += t.effectivePriority;
-				maxList.add(counter);
-			}
-			
-			int winningTicket = rand.nextInt(counter);
-			for(int i = 0; i < maxList.size(); i++)
-			{
-				if (maxList.get(i) > winningTicket)
-				{
-					winner = queue.get(i);
-					break;
-				}
-			}
-			// =========================================
-			
-			setActiveThread(winner);
-			winner.listOfQueues.remove(this);
-			
-			return winner.thread;
-		}
+		          @Override
+            public KThread nextThread()
+            {
+                boolean debug = false;
+                Lib.assertTrue(Machine.interrupt().disabled());
+                ThreadState winner = null;
+
+                if (queue.isEmpty())
+                {
+                    return null;
+                }
+
+                if (debug)  //ONLY FOR DEBUG! checking priority #'s correct
+                {
+                    for (ThreadState t : queue)
+                    {
+                        if (winner == null)
+                        {
+                            winner = t;
+                        }
+                        else
+                        {
+                            if (t.getEffectivePriority() > winner.getEffectivePriority())
+                            {
+                                winner = t;
+                            }
+                        }
+                    }
+                    
+                }
+                else
+                {
+                    /**
+                     * Based on the number tickets owned per thread, give each
+                     * thread that many tickets then randomly choose a ticket
+                     * and find the winner!
+                     *
+                     * Example) Threads have this many tickets: 1 1 3 4 1 1 2 1.
+                     * Create an Array of [1 2 5 9 10 11 13] 2. Randomly choose
+                     * winning ticket #9 -> 5th thread wins! 3. Randomly choose
+                     * winning ticket #0 -> 1st thread wins! Note: Ticket #13
+                     * can never be chosen!
+                     */
+                    maxList.clear();
+                    int counter = 0;
+                    for (ThreadState t : queue)
+                    {
+                        counter += t.effectivePriority;
+                        maxList.add(counter);
+                    }
+
+                    int winningTicket = rand.nextInt(counter);
+                    for (int i = 0; i < maxList.size(); i++)
+                    {
+                        if (maxList.get(i) > winningTicket)
+                        {
+                            winner = queue.get(i);
+                            break;
+                        }
+                    }
+                }
+
+                // =========================================
+                queue.remove(winner);
+                setActiveThread(winner);
+                winner.listOfQueues.remove(this);
+
+                return winner.thread;
+            }
 
                 
                 //TODO override other methods?
