@@ -5,6 +5,7 @@ import nachos.machine.*;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Iterator;
+import java.util.LinkedList;
 
 /**
  * A scheduler that chooses threads using a lottery.
@@ -52,6 +53,24 @@ public class LotteryScheduler extends PriorityScheduler
 	public ThreadQueue newThreadQueue(boolean transferPriority) 
 	{
 		return new LotteryQueue(transferPriority);
+	}
+        
+        @Override
+	public void setPriority(KThread thread, int priority) 
+	{
+		setPriority( thread,  priority,  MINIMUM_PRIORITY,  MAXIMUM_PRIORITY) ;
+	}
+
+        @Override
+	public boolean increasePriority() 
+	{
+		return increasePriority(MAXIMUM_PRIORITY) ;
+	}
+
+        @Override
+	public boolean decreasePriority() 
+	{
+		return decreasePriority(MINIMUM_PRIORITY) ;
 	}
         
 	@Override
@@ -147,12 +166,9 @@ public class LotteryScheduler extends PriorityScheduler
                 queue.remove(winner);
                 setActiveThread(winner);
                 winner.listOfQueues.remove(this);
-
+                
                 return winner.thread;
             }
-
-                
-                //TODO override other methods?
                 
 		@Override
 		public void waitForAccess(KThread thread)
@@ -194,7 +210,7 @@ public class LotteryScheduler extends PriorityScheduler
 
 	}
 
-	private static ArrayList<ThreadState> deadlockKiller;
+	private static LinkedList<ThreadState> deadlockKiller;
 	protected class ThreadState extends PriorityScheduler.ThreadState
 	{
 		private ArrayList<LotteryQueue> listOfQueues ;
@@ -252,7 +268,7 @@ public class LotteryScheduler extends PriorityScheduler
                      }
 			 if (deadlockKiller == null)
 			 {
-				 deadlockKiller = new ArrayList<ThreadState>();
+				 deadlockKiller = new LinkedList<ThreadState>();
 			 }
 			 transferTickets(ticketsToGive, masterThread);
 			 deadlockKiller.clear();
@@ -268,7 +284,7 @@ public class LotteryScheduler extends PriorityScheduler
                         //TODO not sure if this is okay or not? It's because there's no 'head' in a loterry queue
                         if (waitQueue.getActiveThread() == null)
                         {
-                            acquire(waitQueue);
+                          //  acquire(waitQueue);
                         }
                         else
                         {

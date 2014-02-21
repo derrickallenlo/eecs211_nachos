@@ -78,10 +78,16 @@ public class PriorityScheduler extends Scheduler
         @Override
 	public void setPriority(KThread thread, int priority) 
 	{
+		setPriority( thread,  priority,  MINIMUM_PRIORITY,  MAXIMUM_PRIORITY) ;
+	}
+        
+       
+	protected void setPriority(KThread thread, int priority, int min, int max) 
+	{
 		Lib.assertTrue(Machine.interrupt().disabled());
 
-		Lib.assertTrue(priority >= MINIMUM_PRIORITY
-				&& priority <= MAXIMUM_PRIORITY);
+		Lib.assertTrue(priority >= min
+				&& priority <= max);
 
 		getThreadState(thread).setPriority(priority);
 	}
@@ -89,13 +95,18 @@ public class PriorityScheduler extends Scheduler
         @Override
 	public boolean increasePriority() 
 	{
+		return increasePriority(MAXIMUM_PRIORITY) ;
+	}
+        
+	protected boolean increasePriority(int max) 
+	{
 		boolean intStatus = Machine.interrupt().disable();
 		boolean ret = true;
 
 		KThread thread = KThread.currentThread();
 
 		int priority = getPriority(thread);
-		if (priority == MAXIMUM_PRIORITY)
+		if (priority == max)
 		{
 			ret = false;
 		}
@@ -111,13 +122,18 @@ public class PriorityScheduler extends Scheduler
         @Override
 	public boolean decreasePriority() 
 	{
+		return decreasePriority(MINIMUM_PRIORITY) ;
+	}
+        
+	protected boolean decreasePriority(int min) 
+	{
 		boolean intStatus = Machine.interrupt().disable();
 		boolean ret = true;
 
 		KThread thread = KThread.currentThread();
 
 		int priority = getPriority(thread);
-		if (priority == MINIMUM_PRIORITY)
+		if (priority == min)
 		{
 			ret = false;
 		}
