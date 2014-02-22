@@ -8,6 +8,13 @@ import java.io.EOFException;
 import java.util.HashMap;
 import java.util.Map;
 
+
+
+
+
+
+
+
 /**
  * Encapsulates the state of a user process that is not contained in its user
  * thread (or threads). This includes its address translation state, a file
@@ -31,13 +38,40 @@ public class UserProcess
     private int initialPC, initialSP;
     private int argc, argv;
     private static final int pageSize = Processor.pageSize;
+    private static final int STRINGS_MAX_LENGTH = 256;
     private static final char dbgProcess = 'a';
-
+    
+    // Added parameters
+    private int processId;
+    private UserProcess parent;
+    private HashMap<Integer, UserProcess> childProcesses;
+    private HashMap<Integer,Integer> childrenExitStatus;
+    private Map<Integer, UserProcess> allProcess = new HashMap<Integer, UserProcess>();
+    private OpenFile[] fileTable;
+    private UThread thread;
+    
+    private static Lock pidLock = new Lock();
+    private static Lock mapLock = new Lock();
+    private static int processIdCounter = 0;
+    
     /**
      * Allocate a new process.
      */
     public UserProcess()
     {
+    		pidLock.acquire();
+    		processId = processIdCounter;
+    		processIdCounter++;
+		pidLock.release();
+		
+		fileTable = new OpenFile[16];
+		childProcesses = new HashMap<Integer, UserProcess>();
+		childrenExitStatus = new HashMap<Integer,Integer>();
+				
+		fileTable[0] = UserKernel.console.openForReading();
+		fileTable[1] = UserKernel.console.openForWriting();
+		
+		
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++)
@@ -127,7 +161,11 @@ public class UserProcess
 
         return null;
     }
-
+    
+    public String readVirtualMemoryString(int vaddr)
+    {
+        return readVirtualMemoryString(vaddr, STRINGS_MAX_LENGTH);
+    }
     /**
      * Transfer data from this process's virtual memory to all of the specified
      * array. Same as <tt>readVirtualMemory(vaddr, data, 0, data.length)</tt>.
@@ -418,9 +456,36 @@ public class UserProcess
      */
     private int handleExit(int status)
     {
-        //TODO implement me
+    		printDebug("process call exist id: " + processId);
+	    	
+    		// disown children
+    		for (UserProcess child : childProcesses.values()) {
+    			child.parent = null;
+    		}
+    		childProcesses = null;
+    		
+    		// close all the open files threads 
+    		for (OpenFile file : fileTable){
+				if (file != null)
+					file.close();
+			}   			
 
-        return 0;   //void
+    		// transfer exit status to parent
+    		if (this.parent != null) {
+    			this.parent.childrenExitStatus.put(this.processId, status);
+    		}
+
+    		// Free virtual memory
+    		unloadSections();
+
+    		// last process call the machine to halt
+    		if (this.processId == 0) {
+    			Kernel.kernel.terminate(); //root exiting
+    		} else {
+    			KThread.finish();
+    		}			   						    	   		      
+
+        return 0; 
     }
 
     /**
@@ -443,11 +508,62 @@ public class UserProcess
      * exec() returns the child process's process ID, which can be passed to
      * join(). On error, returns -1.
      */
-    private int handleExec(char name, int argc, char argv1, char argv2)     //TODO not sure if this is right # of params
+    private int handleExec(char name, int argc, char argv)
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+        boolean exeLoaded, memoryAccessSuccess;
+        String exeFile = readVirtualMemoryString(name);
+        if (null == exeFile)
+        {
+            printDebug( "Error in opening file id:" + name);
+            return -1;
+        }
+        else if (!exeFile.endsWith(".coeff"))
+        {
+            printDebug( "File found does not end in .coeff");
+            return -1;
+        }
+        else if (argc < 0)
+        {
+            printDebug( "Cannot have negative arguements");
+            return -1;
+        }
+        
+        //Part 2 build the Args                 
+        String[] args = new String[argc];
+        IntegerBufferMap data = new IntegerBufferMap(argc);
+        memoryAccessSuccess = data.readMemoryIntoData(argv);
+        if (!memoryAccessSuccess)
+        {
+            printDebug( "Failed to read integer contents from memory");
+            return -1;
+        }
+        
+        for(int i=0; i < data.size(); i++)
+        {
+            int value = data.getIntLE(i);
+            args[i] = readVirtualMemoryString(value);
+            if (null == args[i])
+            {
+                printDebug( "Error in reading String from memory:" + value);
+                return -1;
+            }
+        }
+        
+        //Part 3 execution
+        UserProcess child = newUserProcess();
+        exeLoaded = child.execute(exeFile, args);
+        if (exeLoaded) //program executed, child was success
+        {
+            child.parent = this;
+            this.childProcesses.put(child.processId, child);
+            this.childrenExitStatus.put(child.processId, null);
+            return child.processId;
+        } 
+        else
+        {
+            printDebug( "Failed to load executable, no child created");
+            return -1;
+        }
     }
 
     /**
@@ -470,9 +586,30 @@ public class UserProcess
      */
     private int handleJoin(int pid, int status)
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+        // pid process is not a child process of current process
+    		if (!this.childProcesses.containsKey(pid)){
+                printDebug("Child does not exist for pid: " + pid);
+                return -1;
+        }
+    		
+    		// until the child process specified has exited.
+    		Integer childExitStatus = this.childrenExitStatus.get(processId);
+    		UserProcess childProcess = null;
+    		if(childExitStatus == null){
+    			childProcess = this.childProcesses.get(pid);
+    			childProcess.thread.join();
+    		}
+        
+    		this.childrenExitStatus.remove(processId);
+    		byte[] statusByte = Lib.bytesFromInt(childExitStatus);
+    		writeVirtualMemory(status,statusByte,0,4);
+    		return 1;
+    		
+         // TODO implement me
+    		/* I have no idea how to do this
+    		 * child exited as a result of an unhandled exception, returns 0
+    		 * 
+    		 * */
     }
 
     /**
@@ -714,7 +851,7 @@ public class UserProcess
             case EXIT:
                 return handleExit(a0);
             case EXEC:
-                return handleExec((char) a0, a1, (char) a2, (char) a3);
+                return handleExec((char) a0, a1, (char) a2);
             case JOIN:
                 return handleJoin(a0, a1);
             case CREATE:
@@ -781,5 +918,59 @@ public class UserProcess
         {
             return handleSyscall(call, a0, a1, a2, a3);
         }
+    }
+    
+    private void printDebug(String message)
+    {
+        Lib.debug(dbgProcess, message);
+    }
+    
+    //TODO currently assumes all data is Integers, not sure if need to expand
+    public class IntegerBufferMap 
+    {
+        private final byte[] data;
+        private static final int BYTES_IN_INTEGER = 4;
+
+        public IntegerBufferMap(byte[] data)
+        {
+            this.data = data;
+        }
+
+        public IntegerBufferMap(int size) 
+        {
+            this.data = new byte[size * BYTES_IN_INTEGER];
+        }
+        
+        public boolean readMemoryIntoData(int offset)
+        {
+            int bytesSuccessful = readVirtualMemory(offset, data);
+            return bytesSuccessful == (data.length);
+        }
+        
+        public int getIntLE(int intOffset)
+        {
+            byte[] dest = new byte[BYTES_IN_INTEGER];
+            int integerOffset = intOffset * BYTES_IN_INTEGER;
+            System.arraycopy(data, integerOffset, dest, 0, BYTES_IN_INTEGER);
+            return Lib.bytesToInt(data, integerOffset);
+        }
+        
+        public void setIntLE(int intOffset, int value)
+        {
+            byte[] src = Lib.bytesFromInt(value);
+            System.arraycopy(src, 0, data, intOffset * BYTES_IN_INTEGER , BYTES_IN_INTEGER);
+        }
+        
+        
+        public byte[] getData()
+        {
+            return data;
+        }
+        
+        public int size()
+        {
+            return data.length / BYTES_IN_INTEGER;
+        }
+        
     }
 }
