@@ -727,7 +727,7 @@ public class KThread
              
            //  yield();
            //  runNextThread();
-               
+               /*
             
             
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
@@ -742,7 +742,7 @@ public class KThread
 		Alarm a = new Alarm();
 		a.waitUntil(1000);
 		//---------------------
-		
+		*/
 		//join test
 		
 //		

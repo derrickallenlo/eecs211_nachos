@@ -1,5 +1,6 @@
 package nachos.userprog;
 
+import java.util.LinkedList;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
@@ -7,8 +8,18 @@ import nachos.userprog.*;
 /**
  * A kernel that can support multiple user processes.
  */
-public class UserKernel extends ThreadedKernel {
-	/**
+public class UserKernel extends ThreadedKernel 
+{
+	/** Globally accessible reference to the synchronized console. */
+	public static SynchConsole console;
+
+	// dummy variables to make javac smarter
+	private static Coff dummy1 = null;
+        
+        public static LinkedList<Integer> freePhysicalPages;
+        public static Lock freePagesLock;
+        
+        /**
 	 * Allocate a new user kernel.
 	 */
 	public UserKernel() {
@@ -29,6 +40,20 @@ public class UserKernel extends ThreadedKernel {
 				exceptionHandler();
 			}
 		});
+                
+                /*
+                 * Initialize freePhysicalPages with max available Physical Memory
+                */
+                freePhysicalPages = new LinkedList<Integer>();
+                
+                for (Integer i=0; i < Machine.processor().getNumPhysPages(); i++)
+                {
+                    freePhysicalPages.add(i);
+                }
+                
+                freePagesLock = new Lock();
+                
+                System.out.println("Initialized freePhysicalPages LL at size: " + freePhysicalPages.size() + " pages");
 	}
 
 	/**
@@ -36,7 +61,7 @@ public class UserKernel extends ThreadedKernel {
 	 */
 	public void selfTest() {
 		super.selfTest();
-
+                partIIDebug();
 		System.out.println("Testing the console device. Typed characters");
 		System.out.println("will be echoed until q is typed.");
 
@@ -49,6 +74,15 @@ public class UserKernel extends ThreadedKernel {
 
 		System.out.println("");
 	}
+        
+        public void partIIDebug()
+        {
+            System.out.println("\n Number of pages of physical memory: " + Machine.processor().getNumPhysPages());
+            
+            System.out.println("\n Page Size is 1024 bytes");
+            //byte[] copyOfMain =  Machine.processor().getMemory();
+            System.out.println("\n Main Memory is 1024 * " + Machine.processor().getNumPhysPages() + "= 64 KB");
+        }
 
 	/**
 	 * Returns the current process.
@@ -107,10 +141,4 @@ public class UserKernel extends ThreadedKernel {
 	public void terminate() {
 		super.terminate();
 	}
-
-	/** Globally accessible reference to the synchronized console. */
-	public static SynchConsole console;
-
-	// dummy variables to make javac smarter
-	private static Coff dummy1 = null;
 }

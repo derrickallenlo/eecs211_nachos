@@ -5,6 +5,7 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.LinkedList;
 
 /**
  * Encapsulates the state of a user process that is not contained in its user
@@ -18,7 +19,27 @@ import java.io.EOFException;
  * @see nachos.vm.VMProcess
  * @see nachos.network.NetProcess
  */
-public class UserProcess {
+public class UserProcess 
+{
+	/** The program being run by this process. */
+	protected Coff coff;
+
+	/** This process's page table. */
+	protected TranslationEntry[] pageTable;
+	/** The number of contiguous pages occupied by the program. */
+	protected int numPages;
+
+	/** The number of pages in the program's stack. */
+	protected final int stackPages = 8;
+
+	private int initialPC, initialSP;
+
+	private int argc, argv;
+
+	private static final int pageSize = Processor.pageSize;
+
+	private static final char dbgProcess = 'a';
+        
 	/**
 	 * Allocate a new process.
 	 */
@@ -126,18 +147,29 @@ public class UserProcess {
 	 * array.
 	 * @return the number of bytes successfully transferred.
 	 */
-	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-		Lib.assertTrue(offset >= 0 && length >= 0
-				&& offset + length <= data.length);
+	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) 
+        {
+                int processPPN; //physical page number translation
+                
+		Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
 
 		byte[] memory = Machine.processor().getMemory();
 
 		// for now, just assume that virtual addresses equal physical addresses
 		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
-
+                {
+                    return 0;
+                }
+                
 		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(memory, vaddr, data, offset, amount);
+                
+                //Make sure virtual Address entry is valid
+                Lib.assertTrue(pageTable[vaddr].valid == true);
+                
+                //translate process vaddr to ppn
+                processPPN = pageTable[vaddr].ppn;
+                
+    		System.arraycopy(memory, processPPN, data, offset, amount);
 
 		return amount;
 	}
@@ -284,6 +316,14 @@ public class UserProcess {
 			Lib.debug(dbgProcess, "\tinsufficient physical memory");
 			return false;
 		}
+                
+                pageTable = new TranslationEntry[numPages];
+                
+                for (int i=0; i<numPages; i++)
+                {
+                    int nextFreePhyiscalPage = checkForContigiousBlocks(numPages);
+                    pageTable[i] = new TranslationEntry(i, nextFreePhyiscalPage, true, false, false, false);
+                }
 
 		// load sections
 		for (int s = 0; s < coff.getNumSections(); s++) {
@@ -296,19 +336,34 @@ public class UserProcess {
 				int vpn = section.getFirstVPN() + i;
 
 				// for now, just assume virtual addresses=physical addresses
-				section.loadPage(i, vpn);
+				section.loadPage(i, pageTable[vpn].ppn);
 			}
 		}
-
+                /*
+                /* return FALSE if we cannot load section into physical memory
+                /* This method should also set up the pageTable structure for 
+                /* the process so that the process is loaded into the correct physical memory pages. 
+                /* If the new user process cannot fit into physical memory, exec() should return an error.
+                */
+                
 		return true;
 	}
 
 	/**
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
-	protected void unloadSections() {
+	protected void unloadSections() 
+        {
+                UserKernel.freePagesLock.acquire();
+                
+                for (int i=0; i<numPages; i++)
+                {
+                    UserKernel.freePhysicalPages.add(pageTable[i].ppn);
+                }
+                
+                UserKernel.freePagesLock.release();
 	}
-
+        
 	/**
 	 * Initialize the processor's registers in preparation for running the
 	 * program loaded into this process. Set the PC register to point at the
@@ -448,24 +503,35 @@ public class UserProcess {
 			Lib.assertNotReached("Unexpected exception");
 		}
 	}
-
-	/** The program being run by this process. */
-	protected Coff coff;
-
-	/** This process's page table. */
-	protected TranslationEntry[] pageTable;
-
-	/** The number of contiguous pages occupied by the program. */
-	protected int numPages;
-
-	/** The number of pages in the program's stack. */
-	protected final int stackPages = 8;
-
-	private int initialPC, initialSP;
-
-	private int argc, argv;
-
-	private static final int pageSize = Processor.pageSize;
-
-	private static final char dbgProcess = 'a';
+        
+        /*
+         * Function to determine best location in Physical memory to 
+         * to create a contigious block of Virtual Memory
+         * 
+         * @param numberOfPagesNeeded number of Physical Pages needed by Process
+         */
+        private int checkForContigiousBlocks(int numberOfPagesNeeded)
+        {
+            int searchIndex = 0;
+            int checkSum = 0;
+            
+            UserKernel.freePagesLock.acquire();
+            
+            LinkedList<Integer> searchList = UserKernel.freePhysicalPages;
+            
+            UserKernel.freePhysicalPages.listIterator(UserKernel.freePhysicalPages.peekFirst());
+            
+            for(searchIndex = UserKernel.freePhysicalPages.peekFirst(); searchIndex<=searchIndex + numberOfPagesNeeded; searchIndex++)
+            {
+                checkSum = checkSum + UserKernel.freePhysicalPages.iterator().next();
+            }
+            
+            if (numberOfPagesNeeded == (checkSum - UserKernel.freePhysicalPages.peekFirst()))
+            {
+                UserKernel.freePagesLock.release();
+                return searchIndex;
+            }
+            //NEED TO FIX
+            return 0;
+        }
 }
