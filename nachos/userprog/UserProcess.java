@@ -33,6 +33,9 @@ public class UserProcess
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
 
+    //project2 partI variables
+    private OpenFile fileDescribtors[];//tracking file descriptors
+    
     /**
      * Allocate a new process.
      */
@@ -44,6 +47,11 @@ public class UserProcess
         {
             pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
         }
+        
+        //project2 partI variables initializer 
+        fileDescribtors = new OpenFile[16];//16 concurrent files include stdin and stdout
+        fileDescribtors[0] = UserKernel.console.openForReading();//stdin    
+        fileDescribtors[1] = UserKernel.console.openForWriting();//stdout    
     }
 
     /**
@@ -486,9 +494,48 @@ public class UserProcess
      */
     private int handleCreate(char name)
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+		Lib.debug(dbgProcess, "\t At handleCreate");
+    	if (name < 0)
+    	{
+    		Lib.debug(dbgProcess, "\t Negative virtual address name detected");
+    		return -1;
+    	}
+    	
+    	//User.Process.readVirtualMemory used transfer between the user process and kernel
+    	//with system calls is 256 bytes
+    	String fileName = readVirtualMemoryString (name, 256);
+    	if (fileName == null)
+    	{
+    		Lib.debug(dbgProcess, "\t Null file name detected");
+    		return -1;
+    	}
+    	
+    	//found FileDecriptorIndex of supporting max 16 concurrent files per user program
+    	int firstAvailableIndex = -1;
+    	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
+    	{
+    		//scan all 16 spaces - not creating if it does exist
+    		if ((fileDescribtors[fdIndex] != null) && (fileDescribtors[fdIndex].getName().equals(fileName)) )
+    		{
+    			Lib.debug(dbgProcess, "\t The same file name detected");
+    			return -1;
+    		}
+    		
+    		if ((fileDescribtors[fdIndex] == null) && (firstAvailableIndex < 0))//creating it if it does not exist
+    		{
+    			firstAvailableIndex = fdIndex;
+    		}
+    	}
+    	
+    	if (firstAvailableIndex > 0)
+    	{
+    		Lib.debug(dbgProcess, "\tCreating File...");
+			fileDescribtors[firstAvailableIndex] = ThreadedKernel.fileSystem.open(fileName, true);
+			return firstAvailableIndex;
+    	}
+		
+    	Lib.debug(dbgProcess, "\tFile Descriptor has reached the maxium - 16 concurrent files");
+        return -1;
     }
 
     /**
@@ -501,11 +548,35 @@ public class UserProcess
      */
     private int handleOpen(char name)
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+        Lib.debug(dbgProcess, "\t At handleOpen");
+    	if (name < 0)
+    	{
+    		Lib.debug(dbgProcess, "\t Negative virtual address name detected");
+    		return -1;
+    	}
+    	
+    	//User.Process.readVirtualMemory used transfer between the user process and kernel
+    	//with system calls is 256 bytes
+    	String fileName = readVirtualMemoryString (name, 256);
+    	if (fileName == null)
+    	{
+    		Lib.debug(dbgProcess, "\t Null file name detected");
+    		return -1;
+    	}
+    	
+    	//find it from array of file decribtors 
+    	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
+    	{
+    		if (fileDescribtors[fdIndex] != null && fileDescribtors[fdIndex].getName().equals(fileName))
+    		{
+    			ThreadedKernel.fileSystem.open(fileName, false);//not making the new file set to false
+    			return fdIndex;
+    		}
+    	}
+    	Lib.debug(dbgProcess, "\t File"+fileName+"not found");
+        return -1;  
     }
-
+    
     /**
      * Attempt to read up to count bytes into buffer from the file or stream
      * referred to by fileDescriptor.
@@ -528,9 +599,75 @@ public class UserProcess
      */
     private int handleRead(int fd, char buffer, int size)
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+    	int numberBytes = 0;//number of bytes read 
+    	
+    	//fileDescriptor is invalid
+    	if ((fd < 0) || (fd > 15))
+    	{
+    		Lib.debug(dbgProcess, "\t Invalid FileDecriptor index");
+    		return -1;
+    	}
+    	
+    	//count bytes - size - is invalid
+    	if (size < 0)
+    	{
+    		Lib.debug(dbgProcess, "\t Invalid size of reading count bytes");
+    		return -1;
+    	}
+    	else if (size == 0)
+    	{
+    		Lib.debug(dbgProcess, "\t 0 reading count bytes detected");
+    		return 0;
+    	}
+    	
+    	if (fileDescribtors[fd] == null)
+    	{
+    		Lib.debug(dbgProcess, "\t Invalid file decribtor");
+    		return -1;
+    	}
+    	
+    	OpenFile file = fileDescribtors[fd];
+    	if (file == null)
+    	{
+    		Lib.debug(dbgProcess, "\t FileDecriptor is not found in the opened files");
+    		return -1;
+    	}
+    	
+    	//variables for file.read
+    	/* read start from current file pointer
+    	 * buf - the buffer to store the bytes in.
+    	 * offset - the offset in the buffer to start storing bytes.
+    	 * length - the number of bytes to read.
+    	 * */
+    	byte byteBuffer[] = new byte[size];//read up to count bytes into buffer
+    	int pos = 0;
+    	int offset = 0;
+    	int length = size;//read up to count bytes into buffer
+    	numberBytes = file.read(byteBuffer, offset, length);
+    	
+    	if ((numberBytes < 0) || (numberBytes > size))
+    	{
+    		Lib.debug(dbgProcess, "\t read file error");
+    		return -1;
+    	}
+    	
+    	/**
+		 * @param	vaddr	the first byte of virtual memory to write.
+		 * @param	data	the array containing the data to transfer.
+		 * @param	offset	the first byte to transfer from the array.
+		 * @param	length	the number of bytes to transfer from the array to
+		 *			virtual memory.
+		 * @return	the number of bytes successfully transferred.
+		*/
+    	numberBytes = writeVirtualMemory(buffer, byteBuffer, offset, numberBytes);
+    	
+    	if ((numberBytes < 0) || (numberBytes > size))
+    	{
+    		Lib.debug(dbgProcess, "\t write to virtual memory error");
+    		return -1;
+    	}
+    		
+        return numberBytes;  
     }
 
     /**
@@ -551,11 +688,79 @@ public class UserProcess
      * invalid, or if a network stream has already been terminated by the remote
      * host.
      */
-    private int handleWrite(int fd, char buffer, int size)
+    private int handleWrite(int fd, char buffer, int size)//buffer is virtual address
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+    	int numberBytes = 0;//number of bytes read 
+    	
+    	//fileDescriptor is invalid
+    	if ((fd < 0) || (fd > 15))
+    	{
+    		Lib.debug(dbgProcess, "\t Invalid FileDecriptor index");
+    		return -1;
+    	}
+    	
+    	//count bytes - size - is invalid
+    	if (size < 0)
+    	{
+    		Lib.debug(dbgProcess, "\t Invalid size of reading count bytes");
+    		return -1;
+    	}
+    	else if (size == 0)
+    	{
+    		Lib.debug(dbgProcess, "\t 0 reading count bytes detected");
+    		return 0;
+    	}
+    	
+    	OpenFile file = fileDescribtors[fd];
+    	if (file == null)
+    	{
+    		Lib.debug(dbgProcess, "\t FileDecriptor is not found in the opened files");
+    		return -1;
+    	}
+    	
+    	
+    	//variables for readVirtualMemory from  memory to byteBuffer
+    	/* @param vaddr the first byte of virtual memory to read.
+         * @param data the array where the data will be stored.
+         * @param offset the first byte to write in the array.
+         * @param length the number of bytes to transfer from virtual memory to the
+         * array.
+         * @return the number of bytes successfully transferred.
+         * */
+    	byte byteBuffer[] = new byte[size];//read up to count bytes into buffer
+    	int offset = 0;
+    	int length = size;//read up to count bytes into buffer
+    	numberBytes = readVirtualMemory(buffer, byteBuffer, offset, length);//buffer is address
+    	
+    	if ((numberBytes < 0) || (numberBytes > size))
+    	{
+    		Lib.debug(dbgProcess, "\t read data from virtual memory error");
+    		return -1;
+    	}
+    		
+    	
+    	//variables for file.write
+    	/*
+		* Write this file starting at the current file pointer and return the
+		* number of bytes successfully written. Advances the file pointer by this
+		* amount. If no bytes could be written because of a fatal error, returns
+		-1.
+		* 
+		* @param buf the buffer to get the bytes from.
+		* @param offset the offset in the buffer to start getting.
+		* @param length the number of bytes to write.
+		@return the actual number of bytes successfully written, or -1 on
+		* failure.
+		*/
+    	numberBytes = file.write(byteBuffer, offset, numberBytes);
+    	
+    	if ((numberBytes < 0) || (numberBytes > size))
+    	{
+    		Lib.debug(dbgProcess, "\t write file error");
+    		return -1;
+    	}
+    	
+        return numberBytes;  
     }
 
     /**
@@ -577,9 +782,23 @@ public class UserProcess
      */
     private int handleClose(int fd)
     {
-        //TODO implement me
-
-        return -1;   //TODO return ???
+    	if ((fd < 0) || (fd > 15))
+    	{
+    		Lib.debug(dbgProcess, "\t Invalid FileDecriptor index");
+    		return -1;
+    	}
+    	
+    	if (fileDescribtors[fd] == null)
+    	{
+    		Lib.debug(dbgProcess, "\t NULL FileDecriptor found");
+    		return -1;
+    	}
+    	
+    	fileDescribtors[fd].close();
+    	fileDescribtors[fd] = null;
+    	Lib.debug(dbgProcess, "\t file closed succesfully");
+    	
+        return 0;
     }
 
     /**
@@ -594,11 +813,30 @@ public class UserProcess
      *
      * Returns 0 on success, or -1 if an error occurred.
      */
-    private int handleUnlink(char name)
+    private int handleUnlink(int addr)
     {
-        //TODO implement me
+        if (addr < 0)
+        {
+        	Lib.debug(dbgProcess, "\t Invalid address - unlink");
+    		return -1;
+        }
+        
+        String fileName = readVirtualMemoryString(addr, 256);
+        if (fileName == null)
+        {
+        	Lib.debug(dbgProcess, "\t Invalid File Name - unlink");
+    		return -1;
+        }
+        
+    	if(ThreadedKernel.fileSystem.remove(fileName))
+    	{
+    		return 0;
+    	}
+    	else
+    	{
+    		return -1;
+    	}
 
-        return -1;   //TODO return ???
     }
 
     //================================================================================================
@@ -728,7 +966,7 @@ public class UserProcess
             case CLOSE:
                 return handleClose(a0);
             case UNLINK:
-                return handleUnlink((char) a0);
+                return handleUnlink(a0);
             case MMAP:
             case CONNECT:
             case ACCEPT:
