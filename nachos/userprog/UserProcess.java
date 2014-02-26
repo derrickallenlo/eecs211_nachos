@@ -149,7 +149,6 @@ public class UserProcess
 	 */
 	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) 
         {
-                int processPPN; //physical page number translation
                 
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
 
@@ -161,16 +160,14 @@ public class UserProcess
                     return 0;
                 }
                 
+                if(pageTable[vaddr].valid != true)
+                {
+                    return 0;
+                }
+                
 		int amount = Math.min(length, memory.length - vaddr);
                 
-                //Make sure virtual Address entry is valid
-                Lib.assertTrue(pageTable[vaddr].valid == true);
-                //RETURN ZERO INSTEAD IF CASE IS TRUE***********
-                
-                //translate process vaddr to ppn
-                processPPN = pageTable[vaddr].ppn;
-                
-    		System.arraycopy(memory, processPPN, data, offset, amount);
+    		System.arraycopy(memory, pageTable[vaddr].ppn, data, offset, amount);
 
 		return amount;
 	}
@@ -311,8 +308,12 @@ public class UserProcess
 	 * 
 	 * @return <tt>true</tt> if the sections were successfully loaded.
 	 */
-	protected boolean loadSections() {
-		if (numPages > Machine.processor().getNumPhysPages()) {
+	protected boolean loadSections() 
+        {
+                int nextFreePhysicalPage = checkForContiguousBlocks(numPages);
+                
+		if ((numPages > Machine.processor().getNumPhysPages()) || (nextFreePhysicalPage == -1)) 
+                {
 			coff.close();
 			Lib.debug(dbgProcess, "\tinsufficient physical memory");
 			return false;
@@ -320,14 +321,13 @@ public class UserProcess
                 
                 pageTable = new TranslationEntry[numPages];
                 
-                int nextFreePhyiscalPage = checkForContiguousBlocks(numPages);
-                System.out.println("Next Free Physical Page: " + nextFreePhyiscalPage);
+                System.out.println("Next Free Physical Page: " + nextFreePhysicalPage);
                 
                 for (int i=0; i < numPages; i++)
                 {
-                    int nextFreePage = UserKernel.freePhysicalPages.remove(UserKernel.freePhysicalPages.indexOf(nextFreePhyiscalPage + i));
+                    int nextFreePage = UserKernel.freePhysicalPages.remove(UserKernel.freePhysicalPages.indexOf(nextFreePhysicalPage + i));
                     System.out.println("Removing Page from LL: " + nextFreePage);
-                    pageTable[i] = new TranslationEntry(i, nextFreePhyiscalPage, true, false, false, false);
+                    pageTable[i] = new TranslationEntry(i, nextFreePhysicalPage, true, false, false, false);
                 }
 
 		// load sections
@@ -523,55 +523,53 @@ public class UserProcess
             boolean blockNotFound = true;
             UserKernel.freePagesLock.acquire();
             
-            //Test Case
-            //searchList.remove(0);
-            //searchList.remove(5);
-            //searchList.remove(6);
-            
             startIndex = UserKernel.freePhysicalPages.peekFirst();
             
             System.out.println("# of Pages Needed: " + numberOfPagesNeeded);
             
-            while(blockNotFound)
+            for (Integer freePage : UserKernel.freePhysicalPages)
             {
-                for (Integer freePage : UserKernel.freePhysicalPages)
+                if (freePage == startIndex)
                 {
-                    if (freePage == startIndex)
-                    {
-                        //init counter
-                        counter = 1;
-                        lastPage = freePage;
-                        System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
-                    }
-                    else if (counter == numberOfPagesNeeded)
-                    {
-                        System.out.println("Allocation found!, Returning index; " + startIndex);
-                        blockNotFound = false;
-                        break;
-                    }
-                    else if (freePage == (lastPage + 1))
-                    {
-                        counter++;
-                        lastPage = freePage;
-                        System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
-                    }
+                    //init counter
+                    counter = 1;
+                    lastPage = freePage;
+                    System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
+                }
+                else if (counter == numberOfPagesNeeded)
+                {
+                    blockNotFound = false;
+                    break;
+                }
+                else if (freePage == (lastPage + 1))
+                {
+                    counter++;
+                    lastPage = freePage;
+                    System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
+                }
 
-                    else
-                    {
-                        //Hole in Physical Memory Detected! Clear startIndex
-                        startIndex = freePage;
-                        lastPage = freePage;
-                        counter = 1;
-                        System.out.println("Hole Found! Restarting search..");
-                        System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
-                    }
+                else
+                {
+                    //Hole in Physical Memory Detected! Reset startIndex
+                    startIndex = freePage;
+                    lastPage = freePage;
+                    counter = 1;
+                    System.out.println("Hole Found! Restarting search..");
+                    System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
                 }
             }
             
-            //THROW ERROR IF INDEX IS STILL NOT FOUND!
-            
             UserKernel.freePagesLock.release();
             
-            return startIndex;
+            if (!blockNotFound)
+            {
+                System.out.println("Allocation found!, Returning index; " + startIndex);
+                return startIndex;
+            }
+            else
+            {
+                //THROW ERROR IF INDEX IS STILL NOT FOUND!
+                return -1;
+            }
         }
 }
