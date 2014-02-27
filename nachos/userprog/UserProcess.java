@@ -185,21 +185,7 @@ public class UserProcess
      */
     public int readVirtualMemory(int vaddr, byte[] data, int offset, int length)
     {
-        Lib.assertTrue(offset >= 0 && length >= 0
-                       && offset + length <= data.length);
-
-        byte[] memory = Machine.processor().getMemory();
-
-        // for now, just assume that virtual addresses equal physical addresses
-        if (vaddr < 0 || vaddr >= memory.length)
-        {
-            return 0;
-        }
-
-        int amount = Math.min(length, memory.length - vaddr);
-        System.arraycopy(memory, vaddr, data, offset, amount);
-
-        return amount;
+        return virtualMemoryCommandHandler(vaddr, data, offset, length, true);
     }
 
     /**
@@ -231,6 +217,8 @@ public class UserProcess
      */
     public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length)
     {
+        return virtualMemoryCommandHandler(vaddr, data, offset, length, false);
+        /*
         Lib.assertTrue(offset >= 0 && length >= 0
                        && offset + length <= data.length);
 
@@ -246,6 +234,7 @@ public class UserProcess
         System.arraycopy(data, offset, memory, vaddr, amount);
 
         return amount;
+        */
     }
 
     /**
@@ -358,13 +347,25 @@ public class UserProcess
      */
     protected boolean loadSections()
     {
-        if (numPages > Machine.processor().getNumPhysPages())
+        int nextFreePhysicalPage = checkForContiguousBlocks(numPages);
+        
+        if ((numPages > Machine.processor().getNumPhysPages()) || (nextFreePhysicalPage == -1)) 
         {
             coff.close();
             printDebug( "\tinsufficient physical memory");
             return false;
         }
-
+        
+        pageTable = new TranslationEntry[numPages];
+                
+        //System.out.println("Next Free Physical Page: " + nextFreePhysicalPage);
+                
+    	for (int i=0; i < numPages; i++)
+        {
+           int nextFreePage = UserKernel.freePhysicalPages.remove(UserKernel.freePhysicalPages.indexOf(nextFreePhysicalPage + i));
+           pageTable[i] = new TranslationEntry(i, nextFreePage, true, false, false, false);
+        }
+        
         // load sections
         for (int s = 0; s < coff.getNumSections(); s++)
         {
@@ -378,7 +379,7 @@ public class UserProcess
                 int vpn = section.getFirstVPN() + i;
 
                 // for now, just assume virtual addresses=physical addresses
-                section.loadPage(i, vpn);
+                section.loadPage(i, pageTable[vpn].ppn);
             }
         }
 
@@ -390,7 +391,14 @@ public class UserProcess
      */
     protected void unloadSections()
     {
-        //TODO ???
+        UserKernel.freePagesLock.acquire();
+
+        for (int i=0; i<numPages; i++)
+        {
+            UserKernel.freePhysicalPages.add(pageTable[i].ppn);
+        }
+
+        UserKernel.freePagesLock.release();
     }
 
     /**
@@ -1238,5 +1246,152 @@ public class UserProcess
             return data.length / BYTES_IN_INTEGER;
         }
         
+    }
+    
+    /*
+    * Function to determine best location in Physical memory to 
+    * to create a contigious block of Virtual Memory
+    * 
+    * @param numberOfPagesNeeded number of Physical Pages needed by Process
+    */
+    private int checkForContiguousBlocks(int numberOfPagesNeeded)
+    {
+        int startIndex = 0;
+        int counter = 0;
+        int lastPage = 0;
+        boolean blockNotFound = true;
+        UserKernel.freePagesLock.acquire();
+
+        startIndex = UserKernel.freePhysicalPages.peekFirst();
+
+        //System.out.println("# of Pages Needed: " + numberOfPagesNeeded);
+
+        for (Integer freePage : UserKernel.freePhysicalPages)
+        {
+            if (freePage == startIndex)
+            {
+                //init counter
+                counter = 1;
+                lastPage = freePage;
+                //System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
+            }
+            else if (counter == numberOfPagesNeeded)
+            {
+                blockNotFound = false;
+                break;
+            }
+            else if (freePage == (lastPage + 1))
+            {
+                counter++;
+                lastPage = freePage;
+                //System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
+            }
+
+            else
+            {
+                //Hole in Physical Memory Detected! Reset startIndex
+                startIndex = freePage;
+                lastPage = freePage;
+                counter = 1;
+                //System.out.println("Hole Found! Restarting search..");
+                //System.out.println("\n Current Page: " + freePage + " Counter: " + counter + " lastPage: " + lastPage + " startIndex: " + startIndex);
+            }
+        }
+
+        UserKernel.freePagesLock.release();
+
+        if (!blockNotFound)
+        {
+            //System.out.println("Allocation found!, Returning index; " + startIndex);
+            return startIndex;
+        }
+        else
+        {
+            //THROW ERROR IF INDEX IS STILL NOT FOUND!
+            return -1;
+        }
+    }
+    
+    private int virtualMemoryCommandHandler(int vaddr, byte[] data, int offset, int length, boolean readCommand)
+    {
+        Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
+        
+        int firstPageToXfer = Machine.processor().pageFromAddress(vaddr);
+	int lastPageToXfer = Machine.processor().pageFromAddress(vaddr+length);
+        int amount = 0;
+        
+        byte[] memory = Machine.processor().getMemory();
+
+        // for now, just assume that virtual addresses equal physical addresses
+        if (vaddr < 0 || vaddr >= memory.length)
+        {
+            return 0;
+        }
+        
+        for(int i = firstPageToXfer; i <= lastPageToXfer; i++)
+        {
+            int startVAddr = Machine.processor().makeAddress(i, 0);
+            int endVAddr = startVAddr + (pageSize - 1);
+            int pageOffsetStart;
+            int pageOffsetEnd;
+            
+            if(pageTable[i].valid != true)
+            {
+                break;
+            }
+            if(!readCommand && pageTable[i].readOnly)
+            {
+                //Do not initiate write command if page is Read Only
+                break;
+            }
+            
+            
+            //copies entire page
+            if (vaddr+length >= endVAddr)
+            {
+                if (vaddr <= startVAddr)
+                {
+                   pageOffsetStart = 0;
+                   pageOffsetEnd = pageSize - 1; 
+                }
+                else
+                {
+                   pageOffsetStart = vaddr - startVAddr;
+                   pageOffsetEnd = pageSize - 1;    
+                }
+            }
+            //copy begin of page to not quite the end
+            else if (vaddr <= startVAddr && vaddr+length < endVAddr)
+            {
+                    pageOffsetStart = 0;
+                    pageOffsetEnd = (vaddr + length) - startVAddr;
+            }
+            //copy partial portion of page where offset is not aligned to beginning or end
+            else 
+            {
+                    pageOffsetStart = vaddr - startVAddr;
+                    pageOffsetEnd = (vaddr + length) - startVAddr;
+            }
+            
+            if (readCommand)
+            {
+                System.arraycopy(memory, Machine.processor().makeAddress(pageTable[i].ppn, pageOffsetStart), data, offset+amount, pageOffsetEnd-pageOffsetStart); 
+            }
+            else
+            {
+                System.arraycopy(data, offset+amount, memory, Machine.processor().makeAddress(pageTable[i].ppn, pageOffsetStart), pageOffsetEnd-pageOffsetStart);
+            }
+      
+            amount += (pageOffsetEnd-pageOffsetStart);
+            
+            pageTable[i].used = true;
+            
+            if(!readCommand)
+            {
+                pageTable[i].dirty = true;
+            }
+        }
+        
+        return amount;
     }
 }

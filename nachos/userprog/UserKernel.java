@@ -3,11 +3,22 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
+import java.util.LinkedList;
 
 /**
  * A kernel that can support multiple user processes.
  */
-public class UserKernel extends ThreadedKernel {
+public class UserKernel extends ThreadedKernel 
+{
+    
+	/** Globally accessible reference to the synchronized console. */
+	public static SynchConsole console;
+
+	// dummy variables to make javac smarter
+	private static Coff dummy1 = null;
+        
+        public static LinkedList<Integer> freePhysicalPages;
+        public static Lock freePagesLock;
 	/**
 	 * Allocate a new user kernel.
 	 */
@@ -19,7 +30,8 @@ public class UserKernel extends ThreadedKernel {
 	 * Initialize this kernel. Creates a synchronized console and sets the
 	 * processor's exception handler.
 	 */
-	public void initialize(String[] args) {
+	public void initialize(String[] args) 
+        {
 		super.initialize(args);
 
 		console = new SynchConsole(Machine.console());
@@ -29,12 +41,28 @@ public class UserKernel extends ThreadedKernel {
 				exceptionHandler();
 			}
 		});
+                
+                /*
+                 * Initialize freePhysicalPages with max available Physical Memory
+                 */
+                
+                freePhysicalPages = new LinkedList<Integer>();
+
+                for (Integer i=0; i < Machine.processor().getNumPhysPages(); i++)
+                {
+                    freePhysicalPages.add(i);
+                }
+
+                freePagesLock = new Lock();
+
+                System.out.println("Initialized freePhysicalPages LL at size: " + freePhysicalPages.size() + " pages");
 	}
 
 	/**
 	 * Test the console device.
 	 */
-	public void selfTest() {
+	public void selfTest() 
+        {
 		super.selfTest();
 
 		System.out.println("Testing the console device. Typed characters");
@@ -107,10 +135,4 @@ public class UserKernel extends ThreadedKernel {
 	public void terminate() {
 		super.terminate();
 	}
-
-	/** Globally accessible reference to the synchronized console. */
-	public static SynchConsole console;
-
-	// dummy variables to make javac smarter
-	private static Coff dummy1 = null;
 }
