@@ -39,8 +39,8 @@ public class UserProcess
     private UserProcess parent;
     private final int processId;
     private int exitStatus;
-    private static final int EXIT_STATUS_STILL_ALIVE = -1;
-    private static final int EXIT_STATUS_GOOD = 0;
+    private static final int EXIT_STATUS_STILL_ALIVE = 999;       // 0-7 status are used
+    private static final int EXIT_STATUS_UNHANDLED_EXC = 1000;
     private static final Lock processIdLock = new Lock();
     
     /**
@@ -630,8 +630,9 @@ public class UserProcess
                     return 0;
                 }
         
-                //TODO this should return 1 only for unhandle exception
-    		if (child.getExitStatus() == EXIT_STATUS_GOOD)
+                //Program executed syscall succesfully
+    		if (child.getExitStatus() != EXIT_STATUS_UNHANDLED_EXC          //some kernel exception
+                    && child.getExitStatus() != EXIT_STATUS_STILL_ALIVE)        //did not call exit()
                 {
                     return 1;
                 }
@@ -1171,7 +1172,8 @@ public class UserProcess
 
             default:
                 printDebug( "Unexpected exception: " + Processor.exceptionNames[cause]);
-                Lib.assertNotReached("Unexpected exception");
+                exitStatus = EXIT_STATUS_UNHANDLED_EXC;
+                break;
         }
     }
 
