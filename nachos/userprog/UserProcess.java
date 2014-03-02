@@ -728,12 +728,45 @@ public class UserProcess
     	{
     		if (fileDescribtors[fdIndex] != null && fileDescribtors[fdIndex].getName().equals(fileName))
     		{
+    			printDebug("\t Opening File...");
     			ThreadedKernel.fileSystem.open(fileName, false);//not making the new file set to false
     			return fdIndex;
     		}
     	}
-    	printDebug("\t File"+fileName+"not found - handleOpen");
-        return -1;  
+    	
+    	//if not in current file descibtors, find file and load to fd
+    	int firstAvailableIndex = -1;
+    	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
+    	{
+    		//scan all 16 spaces - not creating if it does exist
+    		if ((fileDescribtors[fdIndex] != null) && (fileDescribtors[fdIndex].getName().equals(fileName)) )
+    		{
+    			printDebug("\t The same file name detected - handleOpen");
+    			return -1;
+    		}
+    		
+    		if ((fileDescribtors[fdIndex] == null) && (firstAvailableIndex < 0))//creating it if it does not exist
+    		{
+    			firstAvailableIndex = fdIndex;
+    		}
+    	}
+    	
+    	if (firstAvailableIndex > 0)
+    	{
+			fileDescribtors[firstAvailableIndex] = ThreadedKernel.fileSystem.open(fileName, false);//making new one set to true
+			if (fileDescribtors[firstAvailableIndex] !=null)
+			{
+				printDebug("\t Opening File...");
+				return firstAvailableIndex;
+			}
+			else
+			{
+				printDebug("\t Can't open the file or folder is not supported - handleOpen");
+				return -1;
+			}
+    	}
+    	printDebug("\tFile Descriptor has reached the maxium - 16 concurrent files - handleOpen");
+    	return -1;	
     }
     
     /**
@@ -991,7 +1024,7 @@ public class UserProcess
         //make file Describtors available to the process if any file open match
         for (int i = 0; i < 16; i++)
         {
-        	if (fileDescribtors[i].getName().equals(fileName))
+        	if (fileDescribtors[i] != null && fileDescribtors[i].getName().equals(fileName))
         	{
         		fileDescribtors[i].close();//release any system source
         		fileDescribtors[i] = null;
@@ -1000,6 +1033,7 @@ public class UserProcess
         
     	if(ThreadedKernel.fileSystem.remove(fileName))
     	{
+    		printDebug("\t File Name unlink successfuly - handleUnlink");
     		return 0;
     	}
     	else
