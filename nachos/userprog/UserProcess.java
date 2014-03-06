@@ -7,6 +7,7 @@ import nachos.userprog.*;
 import java.io.EOFException;
 import java.util.HashMap;
 import java.util.Map;
+import nachos.vm.VMKernel;
 
 /**
  * Encapsulates the state of a user process that is not contained in its user
@@ -368,6 +369,12 @@ public class UserProcess
                 
     	for (int i=0; i < numPages; i++)
         {
+           if (i == 0)
+           {
+                 VMKernel.invertedPageTableLock.acquire();
+                 VMKernel.invertedPageTable.put(processId, i); //Determine real VPN numbering system
+                 VMKernel.invertedPageTableLock.release();
+           }
            int nextFreePage = UserKernel.freePhysicalPages.remove(UserKernel.freePhysicalPages.indexOf(nextFreePhysicalPage + i));
            pageTable[i] = new TranslationEntry(i, nextFreePage, true, false, false, false);
         }
@@ -403,8 +410,12 @@ public class UserProcess
         {
             UserKernel.freePhysicalPages.add(pageTable[i].ppn);
         }
-
+        
         UserKernel.freePagesLock.release();
+        
+        VMKernel.invertedPageTableLock.acquire();
+        VMKernel.invertedPageTable.remove(processId);
+        VMKernel.invertedPageTableLock.release();
     }
 
     /**
