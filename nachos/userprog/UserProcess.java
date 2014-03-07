@@ -523,7 +523,7 @@ public class UserProcess
      * exec() returns the child process's process ID, which can be passed to
      * join(). On error, returns -1.
      */
-    private int handleExec(char name, int argc, char argv)
+    private int handleExec(int name, int argc, int argv)
     {
         boolean exeLoaded, memoryAccessSuccess;
         String exeFile = readVirtualMemoryString(name);
@@ -653,7 +653,7 @@ public class UserProcess
      *
      * Returns the new file descriptor, or -1 if an error occurred.
      */
-    private int handleCreate(char name)
+    private int handleCreate(int name)
     {
     	if (name < 0)
     	{
@@ -706,7 +706,7 @@ public class UserProcess
      *
      * Returns the new file descriptor, or -1 if an error occurred.
      */
-    private int handleOpen(char name)
+    private int handleOpen(int name)
     {
     	if (name < 0)
     	{
@@ -789,7 +789,7 @@ public class UserProcess
      * read-only or invalid, or if a network stream has been terminated by the
      * remote host and no more data is available.
      */
-    private int handleRead(int fd, char buffer, int size)
+    private int handleRead(int fd, int buffer, int size)
     {
     	int numberBytes = 0;//number of bytes read 
     	
@@ -880,7 +880,7 @@ public class UserProcess
      * invalid, or if a network stream has already been terminated by the remote
      * host.
      */
-    private int handleWrite(int fd, char buffer, int size)//buffer is virtual address
+    private int handleWrite(int fd, int buffer, int size)//buffer is virtual address
     {
     	int numberBytes = 0;//number of bytes read 
     	
@@ -1156,17 +1156,17 @@ public class UserProcess
             case EXIT:
                 return handleExit(a0);
             case EXEC:
-                return handleExec((char) a0, a1, (char) a2);
+                return handleExec( a0, a1,  a2);
             case JOIN:
                 return handleJoin(a0, a1);
             case CREATE:
-                return handleCreate((char) a0);
+                return handleCreate( a0);
             case OPEN:
-                return handleOpen((char) a0);
+                return handleOpen( a0);
             case READ:
-                return handleRead(a0, (char) a1, a2);
+                return handleRead(a0,  a1, a2);
             case WRITE:
-                return handleWrite(a0, (char) a1, a2);
+                return handleWrite(a0,  a1, a2);
             case CLOSE:
                 return handleClose(a0);
             case UNLINK:

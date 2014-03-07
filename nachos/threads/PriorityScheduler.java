@@ -335,6 +335,11 @@ public class PriorityScheduler extends Scheduler
 			return priority;
 		}
 
+                public KThread getThread()
+                {
+                    return thread;
+                }
+                
 		/**
 		 * Return the effective priority of the associated thread.
 		 * 

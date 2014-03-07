@@ -147,7 +147,7 @@ public class LotteryScheduler extends PriorityScheduler
                     int counter = 0;
                     for (ThreadState t : queue)
                     {
-                        counter += t.effectivePriority;
+                        counter += t.getEffectivePriority();
                         maxList.add(counter);
                     }
 
@@ -167,7 +167,7 @@ public class LotteryScheduler extends PriorityScheduler
                 setActiveThread(winner);
                 winner.listOfQueues.remove(this);
                 
-                return winner.thread;
+                return winner.getThread();
             }
                 
 		@Override
