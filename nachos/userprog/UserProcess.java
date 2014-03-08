@@ -38,12 +38,12 @@ public class UserProcess
     private static Map<Integer, UserProcess> allProcess = new HashMap<Integer, UserProcess>();
     private UserProcess parent;
     private final int processId;
+    private BinarySemaphore exitStatusAvailable;
     private int exitStatus;
     private static final int EXIT_STATUS_STILL_ALIVE = 999;       // 0-7 status are used
     private static final int EXIT_STATUS_UNHANDLED_EXC = 1000;
     private static final Lock processIdLock = new Lock();
     
-    protected Semaphore isProcessFinished;
     /**
      * Allocate a new process.
      */
@@ -68,7 +68,7 @@ public class UserProcess
         allProcess.put(processId, this);
         processIdLock.release();
         
-        isProcessFinished = new Semaphore(0);
+        exitStatusAvailable = new BinarySemaphore();
     }
 
     /**
@@ -444,7 +444,7 @@ public class UserProcess
     {
         return exitStatus;
     }
-
+    
     /**
      * Halt the Nachos machine by calling Machine.halt(). Only the root process
      * (the first process, executed by UserKernel.run()) should be allowed to
@@ -493,7 +493,7 @@ public class UserProcess
     		// Free virtual memory
     		unloadSections();
                 
-                isProcessFinished.V();
+                exitStatusAvailable.signal();
 
     		// last process call the machine to halt
     		if (processId == 0) 
@@ -622,35 +622,26 @@ public class UserProcess
         allProcess.put(pid, null);  //remove reference to child (can't reuse id)
         child.parent = null;        //dereference parent in case parent deleted
         
-        child.isProcessFinished.P();
-        
-        
-        /* COMMENTED OUT BY DERRICK, IS THIS STILL NEEDED??
-        // join child if still running
-        if(child.getExitStatus() == EXIT_STATUS_STILL_ALIVE)
-        {
-            //TODO should I wait for this join to finish?
-                child.getThread().join();
-        }
-        */
-                
+        child.exitStatusAvailable.waitFor();
+        int childExitStatus = child.getExitStatus();
         IntegerBufferMap data = new IntegerBufferMap(1);
-        data.setIntLE(0, child.getExitStatus());
+        data.setIntLE(0, childExitStatus);
         boolean successfulStatusWrite = data.writeToMemoryFromData(status);
         if (!successfulStatusWrite)
         {
-            printDebug("Failed to write child exist status to memory:" + child.getExitStatus());
+            printDebug("Failed to write child exist status to memory:" + childExitStatus);
             return 0;
         }
 
         //Program executed syscall succesfully
-        if (child.getExitStatus() != EXIT_STATUS_UNHANDLED_EXC          //some kernel exception
-            && child.getExitStatus() != EXIT_STATUS_STILL_ALIVE)        //did not call exit()
+        if (childExitStatus != EXIT_STATUS_UNHANDLED_EXC          //some kernel exception
+            && childExitStatus != EXIT_STATUS_STILL_ALIVE)        //did not call exit()
         {
             return 1;
         }
         else
         {
+            printDebug("Child exited with status: " + childExitStatus);
             return 0;
         }
 
@@ -1244,7 +1235,6 @@ public class UserProcess
         Lib.debug(dbgProcess, message);
     }
     
-    //TODO currently assumes all data is Integers, not sure if need to expand
     public class IntegerBufferMap 
     {
         private final byte[] data;
@@ -1295,6 +1285,24 @@ public class UserProcess
             return data.length / BYTES_IN_INTEGER;
         }
         
+    }
+    
+    public class BinarySemaphore extends Semaphore 
+    {
+        public BinarySemaphore() 
+        {
+            super(0);
+        }
+
+        public void signal()
+        {
+            V();
+        }
+        
+        public void waitFor()
+        {
+            P();
+        }
     }
     
     /*
