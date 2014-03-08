@@ -43,6 +43,7 @@ public class UserProcess
     private static final int EXIT_STATUS_UNHANDLED_EXC = 1000;
     private static final Lock processIdLock = new Lock();
     
+    protected Semaphore isProcessFinished;
     /**
      * Allocate a new process.
      */
@@ -66,6 +67,8 @@ public class UserProcess
         processId = allProcess.size();
         allProcess.put(processId, this);
         processIdLock.release();
+        
+        isProcessFinished = new Semaphore(0);
     }
 
     /**
@@ -489,6 +492,8 @@ public class UserProcess
 
     		// Free virtual memory
     		unloadSections();
+                
+                isProcessFinished.V();
 
     		// last process call the machine to halt
     		if (processId == 0) 
@@ -566,6 +571,9 @@ public class UserProcess
         
         //Part 3 execution
         UserProcess child = newUserProcess();
+        
+        saveState();
+        
         exeLoaded = child.execute(exeFile, args);
         if (exeLoaded) //program executed, child was success
         {
@@ -614,33 +622,38 @@ public class UserProcess
         allProcess.put(pid, null);  //remove reference to child (can't reuse id)
         child.parent = null;        //dereference parent in case parent deleted
         
-    		// join child if still running
-    		if(child.getExitStatus() == EXIT_STATUS_STILL_ALIVE)
-                {
-                    //TODO should I wait for this join to finish?
-    			child.getThread().join();
-    		}
-                
-                IntegerBufferMap data = new IntegerBufferMap(1);
-                data.setIntLE(0, child.getExitStatus());
-                boolean successfulStatusWrite = data.writeToMemoryFromData(status);
-                if (!successfulStatusWrite)
-                {
-                    printDebug("Failed to write child exist status to memory:" + child.getExitStatus());
-                    return 0;
-                }
+        child.isProcessFinished.P();
         
-                //Program executed syscall succesfully
-    		if (child.getExitStatus() != EXIT_STATUS_UNHANDLED_EXC          //some kernel exception
-                    && child.getExitStatus() != EXIT_STATUS_STILL_ALIVE)        //did not call exit()
-                {
-                    return 1;
-                }
-                else
-                {
-                    return 0;
-                }
-    
+        
+        /* COMMENTED OUT BY DERRICK, IS THIS STILL NEEDED??
+        // join child if still running
+        if(child.getExitStatus() == EXIT_STATUS_STILL_ALIVE)
+        {
+            //TODO should I wait for this join to finish?
+                child.getThread().join();
+        }
+        */
+                
+        IntegerBufferMap data = new IntegerBufferMap(1);
+        data.setIntLE(0, child.getExitStatus());
+        boolean successfulStatusWrite = data.writeToMemoryFromData(status);
+        if (!successfulStatusWrite)
+        {
+            printDebug("Failed to write child exist status to memory:" + child.getExitStatus());
+            return 0;
+        }
+
+        //Program executed syscall succesfully
+        if (child.getExitStatus() != EXIT_STATUS_UNHANDLED_EXC          //some kernel exception
+            && child.getExitStatus() != EXIT_STATUS_STILL_ALIVE)        //did not call exit()
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+
     }
 
 
