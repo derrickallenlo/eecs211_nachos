@@ -8,11 +8,17 @@ import nachos.vm.*;
 /**
  * A <tt>UserProcess</tt> that supports demand-paging.
  */
-public class VMProcess extends UserProcess {
+public class VMProcess extends UserProcess 
+{
+	private static final int pageSize = Processor.pageSize;
+	private static final char dbgProcess = 'a';
+	private static final char dbgVM = 'v';
+        
 	/**
 	 * Allocate a new process.
 	 */
-	public VMProcess() {
+	public VMProcess() 
+        {
 		super();
 	}
 
@@ -20,15 +26,17 @@ public class VMProcess extends UserProcess {
 	 * Save the state of this process in preparation for a context switch.
 	 * Called by <tt>UThread.saveState()</tt>.
 	 */
-	public void saveState() {
-		super.saveState();
+	public void saveState() 
+        {
+		VMKernel.tlbController.clear();
 	}
 
 	/**
 	 * Restore the state of this process after a context switch. Called by
 	 * <tt>UThread.restoreState()</tt>.
 	 */
-	public void restoreState() {
+	public void restoreState() 
+        {
 		super.restoreState();
 	}
 
@@ -38,14 +46,17 @@ public class VMProcess extends UserProcess {
 	 * 
 	 * @return <tt>true</tt> if successful.
 	 */
-	protected boolean loadSections() {
+	protected boolean loadSections() 
+        {
 		return super.loadSections();
+                //TO DO BY DERRICk
 	}
 
 	/**
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
-	protected void unloadSections() {
+	protected void unloadSections() 
+        {
 		super.unloadSections();
 	}
 
@@ -56,19 +67,41 @@ public class VMProcess extends UserProcess {
 	 * 
 	 * @param cause the user exception that occurred.
 	 */
-	public void handleException(int cause) {
+	public void handleException(int cause) 
+        {
 		Processor processor = Machine.processor();
 
-		switch (cause) {
-		default:
-			super.handleException(cause);
-			break;
+		switch (cause) 
+                {
+                    case Processor.exceptionTLBMiss:
+                        handleTLBMiss();
+                        break;
+                    default:
+                            super.handleException(cause);
+                            break;
 		}
 	}
-
-	private static final int pageSize = Processor.pageSize;
-
-	private static final char dbgProcess = 'a';
-
-	private static final char dbgVM = 'v';
+        
+        /**
+	 * Handle a TLB Miss exception.
+	 * Page translation was not found in TLB, translate Page # from inverted Page Table
+	 * 
+	 */
+        private void handleTLBMiss()
+        {
+            int missedVirtualPage = Machine.processor().pageFromAddress(Machine.processor().readRegister(Processor.regBadVAddr));
+            
+            System.out.println("TLB Miss! On Virtual Page " + missedVirtualPage);
+            
+            //Retrieve Physical translation and resume process?
+            TranslationEntry translatedEntry = VMKernel.getMemoryPageEntryFromPhyMem(super.getProcessID() , missedVirtualPage);
+            
+            if (translatedEntry == null)
+            {
+                //PAGEFAULT! handle page fault accordingly
+            }
+          
+            //Write out translation to TLB
+            VMKernel.tlbController.addEntry(translatedEntry);
+        }
 }
