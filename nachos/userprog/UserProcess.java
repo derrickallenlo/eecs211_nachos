@@ -82,6 +82,12 @@ public class UserProcess
     {
         return (UserProcess) Lib.constructObject(Machine.getProcessClassName());
     }
+    
+    //Return PID of associated Process
+    public int getProcessID()
+    {
+        return processId;
+    }
 
     /**
      * Execute the specified program with the specified arguments. Attempts to
