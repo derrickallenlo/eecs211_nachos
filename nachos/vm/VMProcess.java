@@ -68,17 +68,17 @@ public class VMProcess extends UserProcess
 	 * @param cause the user exception that occurred.
 	 */
 	public void handleException(int cause) 
-        {
+	{
 		Processor processor = Machine.processor();
 
 		switch (cause) 
-                {
-                    case Processor.exceptionTLBMiss:
-                        handleTLBMiss();
-                        break;
-                    default:
-                            super.handleException(cause);
-                            break;
+        {
+        	case Processor.exceptionTLBMiss:
+        		handleTLBMiss();
+        		break;
+        	default:
+        		super.handleException(cause);
+        		break;
 		}
 	}
         
@@ -91,14 +91,17 @@ public class VMProcess extends UserProcess
         {
             int missedVirtualPage = Machine.processor().pageFromAddress(Machine.processor().readRegister(Processor.regBadVAddr));
             
-            System.out.println("TLB Miss! On Virtual Page " + missedVirtualPage);
+            printDebug( "TLB Miss! On Virtual Page " + missedVirtualPage);
             
             //Retrieve Physical translation and resume process?
             TranslationEntry translatedEntry = VMKernel.getMemoryPageEntryFromPhyMem(super.getProcessID() , missedVirtualPage);
             
-            if (translatedEntry == null)
+            if (translatedEntry != null)
             {
                 //PAGEFAULT! handle page fault accordingly
+            	//Kernel handle the page fault
+            	//1. Keep tracking current page is used to find unreferenced pages to throw out on page faults
+            	translatedEntry = VMKernel.handlePageFault(processId, missedVirtualPage);
             }
           
             //Write out translation to TLB
