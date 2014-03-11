@@ -1,6 +1,9 @@
 package nachos.vm;
 
 import java.util.Hashtable;
+import java.util.LinkedList;
+
+import nachos.machine.Machine;
 
 /**
  * A <tt>ReplacementAlgorithm</tt> 
@@ -9,30 +12,46 @@ import java.util.Hashtable;
  */
 public abstract class ReplacementAlgorithm
 {
-    /* main memory, an array indexed by frame number, stores a page p. */
-    //public int memory[];
-    //public int used_frames;
-    public int num_faults;
-
-    /* hashmap maintains which page resides in which frame for quick reference.
-     * key:page number, value:frame number; saves a linear scan to check if
-     * a page exists in memory.
-     */
-    public Hashtable<Integer, Integer> page_map;
-
-    public ReplacementAlgorithm(Hashtable newpage_map)
+    /*
+     * ******************************************************
+     * variables need from VMKernel, Machine.processor*******
+     * ******************************************************
+     * VMKernel.invertedPageTable:
+     * TLB used hashTable to maintain which page resides in which frame.
+     * ******************************************************
+     * Machine.processor().getNumPhysPages() :
+     * number of pages of physical memory in this simulated processor
+     * ******************************************************
+     * VMKernel.physicalMemoryMap[i].entry.used:
+     * number of pages of physical memory in this simulated processor
+     * ******************************************************
+     * */
+    public ReplacementAlgorithm()
     {
-        //memory = new int[num_frames];
-        this.page_map = newpage_map;
-       // used_frames = 0;
-        //num_faults = 0;
-
-        //for (int i = 0; i < num_frames; i++)
-            //memory[i] = -1;
+    	
     }
 
 
     /* this method will be defined by page replacement algorithm */
+    /**
+  	 * perform page replacement algorithm
+  	 * @param non
+  	 * @return a physical page number that will replace 
+  	 */
     abstract int findSwappedPage();
+    
+    /**
+  	 * get current page fault
+  	 * @param non
+  	 * @return int number of page faults 
+  	 */
+    abstract int getNumberPageFault();
+    
+    /**
+  	 * get replacement algorithm name
+  	 * @param non
+  	 * @return String name 
+  	 */
+    abstract String getAlgorithmName();
 
 }

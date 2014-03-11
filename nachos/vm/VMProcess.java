@@ -18,7 +18,7 @@ public class VMProcess extends UserProcess
 	 * Allocate a new process.
 	 */
 	public VMProcess() 
-        {
+    {
 		super();
 	}
 
@@ -101,7 +101,7 @@ public class VMProcess extends UserProcess
                 //PAGEFAULT! handle page fault accordingly
             	//Kernel handle the page fault
             	//1. Keep tracking current page is used to find unreferenced pages to throw out on page faults
-            	translatedEntry = VMKernel.handlePageFault(processId, missedVirtualPage);
+            	translatedEntry = VMKernel.handlePageFault(super.getProcessID(), missedVirtualPage);
             }
           
             //Write out translation to TLB

@@ -20,10 +20,11 @@ public class VMKernel extends UserKernel
     //only one lock for all pages that prevent other process tries to move page while swapping
     public static Lock invertedPageTableLock;
     
-    /* To tack of all of the pages in oder to find unreferenced pages to throw out on page faults
-     * core map contains pid,vpn and entry
-     * an array that maps physical page numbers to the virtual pages that are stored there
-     */
+   /* In order to find unreferenced pages to throw out on page faults, you will need to keep
+    * track of all of the pages in the system which are currently in use. You should consider
+    * using a core map, an array that maps physical page numbers to the virtual pages that are
+    * stored there.
+    * */
     public static MemoryPage[] physicalMemoryMap;
     public static TLBController tlbController;
     public static MemoryController memoryController;
@@ -41,11 +42,11 @@ public class VMKernel extends UserKernel
 	 * Initialize this kernel.
 	 */
 	public void initialize(String[] args) 
-        {
+	{
 		super.initialize(args);
-                physicalMemoryMap = new MemoryPage[Machine.processor().getNumPhysPages()];
-                invertedPageTable = new Hashtable<Integer,Integer>();
-                tlbController = new TLBController();
+		physicalMemoryMap = new MemoryPage[Machine.processor().getNumPhysPages()];
+		invertedPageTable = new Hashtable<Integer,Integer>();
+		tlbController = new TLBController();
 	}
 
 	/**
@@ -70,6 +71,10 @@ public class VMKernel extends UserKernel
 	public void terminate() 
 	{
 		super.terminate();
+		//TODO - Richard
+		//The swap file should be closed and deleted when VMKernel.terminate() is called.
+		printDebug(memoryController.pageReplacementAlgorithm.getAlgorithmName()+
+				"Total Page Fault: "+memoryController.pageReplacementAlgorithm.getNumberPageFault());
 	}
         
     public static TranslationEntry getMemoryPageEntryFromPhyMem(int ProcessId, int virtualPageNumber)
@@ -102,7 +107,11 @@ public class VMKernel extends UserKernel
     {
     	printDebug(UThread.currentThread().getName() + ", handleTLB miss exception: " + vpn);
     	/*
-    	 * while swapping (move page from/to memory or disk) ensure no W/R virtual memory operation  
+    	 * Now that pages are being moved to and from memory and disk, you need to ensure that
+    	 * one process won't try to move a page while another process is performing some other
+    	 * operation on it (e.g., areadVirtualMemory or writeVirtualMemory operation, or loading the
+    	 * contents of the page from a disk file). You should not use a separate Lock for every page
+    	 * -- this is highly inefficient. ---> used globe lock
     	 */
     	invertedPageTableLock.acquire();
     	

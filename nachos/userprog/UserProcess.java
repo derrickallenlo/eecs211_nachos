@@ -1236,7 +1236,7 @@ public class UserProcess
         }
     }
     
-    private static void printDebug(String message)
+    protected static void printDebug(String message)
     {
         Lib.debug(dbgProcess, message);
     }
