@@ -52,10 +52,10 @@ public class MemoryController
 				boolean success = VMKernel.swapFile.write(swapPage.frameNumber, Machine.processor().getMemory(), 
 										Processor.makeAddress(ppn, 0), Processor.pageSize);
 				if(!success){
-					//TODO - Richard
+					//TODO - Richard 
+					//write error and kill proceess
 					VMKernel.printDebug("Write error, machine terminated");
-					// write error;
-					// kill proceess here?
+					Machine.halt();
 				}
 				
 			}
@@ -81,16 +81,22 @@ public class MemoryController
 		
 		int ppn = pageReplacementAlgorithm.findSwappedPage();
 		swapOut(ppn);//if only if it's already in the memory
-		
+		TranslationEntry entry = null ;
 		//now perform Swap In
-		//TODO -Richard
-		//TranslationEntry entry = VMKernel.swapFile.getPage(pid, vpn);
+		//TODO -Richard 
 		SwapPage swapPage = VMKernel.swapFile.getSwapPage(pid, vpn);
-		if(swapPage == null){
-			//TODO swapIn page doesn't exist
+		// if the swapIn Page is on the disk
+		if(swapPage != null){
+			entry = swapPage.memoryPage.entry;
+			entry.valid = true;
+			entry.used =false;
+			entry.dirty =false;
+		}else{
+			// the swapIn Page is not on the disk create a new one
+			entry = new TranslationEntry(vpn, ppn, true, false, false, false);
 		}
 		
-		TranslationEntry entry = swapPage.memoryPage.entry;
+		 
 		
 		
 		VMKernel.invertedPageTable.put(pid^vpn, ppn);//update ipt
