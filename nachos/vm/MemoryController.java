@@ -37,14 +37,27 @@ public class MemoryController
 		//make sure it's in the memory
 		//if it's not in the memory, we don't need swap out
 		if (swapOutPage != null && swapOutPage.entry.valid)
-		{
+		{	
+			// TODO- Added By Richard
+			swapOutPage.entry.valid = false;
+			VMKernel.invertedPageTable.remove(swapOutPage.processId^swapOutPage.entry.vpn);
 			//if modified, update value at disk (ie. write() )
-			//otherwist should not write any pages to the swap file
+			//otherwise should not write any pages to the swap file
 			//Your page-replacement policy should not write any pages to the swap file...
 			if (swapOutPage.entry.dirty)
 			{
 				//TODO - Richard
 				//update disk value with this entry
+				SwapPage swapPage = VMKernel.swapFile.newSwapPage(swapOutPage);
+				boolean success = VMKernel.swapFile.write(swapPage.frameNumber, Machine.processor().getMemory(), 
+										Processor.makeAddress(ppn, 0), Processor.pageSize);
+				if(!success){
+					//TODO - Richard
+					VMKernel.printDebug("Write error, machine terminated");
+					// write error;
+					// kill proceess here?
+				}
+				
 			}
 			
 			//TODO - Derrick 
@@ -70,9 +83,15 @@ public class MemoryController
 		swapOut(ppn);//if only if it's already in the memory
 		
 		//now perform Swap In
-		//TODO - Richard
-		//TranslationEntry entry = VMKernel.swapFile.getPage(pid, vpn); 
-		TranslationEntry entry = null;
+		//TODO -Richard
+		//TranslationEntry entry = VMKernel.swapFile.getPage(pid, vpn);
+		SwapPage swapPage = VMKernel.swapFile.getSwapPage(pid, vpn);
+		if(swapPage == null){
+			//TODO swapIn page doesn't exist
+		}
+		
+		TranslationEntry entry = swapPage.memoryPage.entry;
+		
 		
 		VMKernel.invertedPageTable.put(pid^vpn, ppn);//update ipt
 		MemoryPage newPage = new MemoryPage(pid, vpn, entry);

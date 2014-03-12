@@ -73,6 +73,7 @@ public class VMKernel extends UserKernel
 		super.terminate();
 		//TODO - Richard
 		//The swap file should be closed and deleted when VMKernel.terminate() is called.
+		VMKernel.swapFile.close();
 		printDebug(memoryController.pageReplacementAlgorithm.getAlgorithmName()+
 				"Total Page Fault: "+memoryController.pageReplacementAlgorithm.getNumberPageFault());
 	}
@@ -96,6 +97,7 @@ public class VMKernel extends UserKernel
         
         return entry;
     }
+    
     
     /**
   	 * Handle a Page Fault for UserProcess
@@ -122,7 +124,7 @@ public class VMKernel extends UserKernel
     	
     	return missedTranslatedEntry;
     }
-    protected static void printDebug(String message)
+    public static void printDebug(String message)
     {
         Lib.debug(dbgVM, message);
     }
