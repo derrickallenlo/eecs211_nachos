@@ -94,7 +94,7 @@ public class MemoryController
 			boolean success = VMKernel.swapFile.read(swapPage.frameNumber, Machine.processor().getMemory(), 
 					Processor.makeAddress(ppn, 0), Processor.pageSize);
 			if(!success){
-				//read error and kill proceess
+				// read error and kill proceess
 				VMKernel.printDebug("Read error, machine terminated");
 				Machine.halt();
 			}
