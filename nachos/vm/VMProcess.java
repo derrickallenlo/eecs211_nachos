@@ -37,7 +37,7 @@ public class VMProcess extends UserProcess
 	 */
 	public void restoreState() 
         {
-		super.restoreState();
+		//super.restoreState();  TODO delete this?
 	}
 
 	/**
@@ -96,7 +96,7 @@ public class VMProcess extends UserProcess
             //Retrieve Physical translation and resume process?
             TranslationEntry translatedEntry = VMKernel.getMemoryPageEntryFromPhyMem(super.getProcessID() , missedVirtualPage);
             
-            if (translatedEntry != null)
+            if (translatedEntry == null)
             {
                 //PAGEFAULT! handle page fault accordingly
             	//Kernel handle the page fault

@@ -17,8 +17,8 @@ public class VMKernel extends UserKernel
 	private static final char dbgVM = 'v';    
     public static Hashtable<Integer,Integer> invertedPageTable;//pid^vpn, ppn
     
-    //only one lock for all pages that prevent other process tries to move page while swapping
-    public static Lock invertedPageTableLock;
+    
+    
     
    /* In order to find unreferenced pages to throw out on page faults, you will need to keep
     * track of all of the pages in the system which are currently in use. You should consider
@@ -29,6 +29,7 @@ public class VMKernel extends UserKernel
     public static TLBController tlbController;
     public static MemoryController memoryController;
     public static SwapFile swapFile;
+    public static Lock invertedPageTableLock; //only one lock for all pages that prevent other process tries to move page while swapping
     
 	/**
 	 * Allocate a new VM kernel.
@@ -40,13 +41,18 @@ public class VMKernel extends UserKernel
 
 	/**
 	 * Initialize this kernel.
+     * @param args
 	 */
+        @Override
 	public void initialize(String[] args) 
 	{
 		super.initialize(args);
 		physicalMemoryMap = new MemoryPage[Machine.processor().getNumPhysPages()];
 		invertedPageTable = new Hashtable<Integer,Integer>();
 		tlbController = new TLBController();
+                invertedPageTableLock = new Lock();
+                memoryController = new MemoryController();
+                swapFile = new SwapFile();
 	}
 
 	/**
@@ -105,7 +111,7 @@ public class VMKernel extends UserKernel
   	 * @param associated pid in inverted page table that vpn has not yet brought to memory 
   	 * @param vpn missing virtual page number
   	 */
-    static public TranslationEntry handlePageFault(int pid, int vpn)
+    public static TranslationEntry handlePageFault(int pid, int vpn)
     {
     	printDebug(UThread.currentThread().getName() + ", handleTLB miss exception: " + vpn);
     	/*
@@ -124,6 +130,7 @@ public class VMKernel extends UserKernel
     	
     	return missedTranslatedEntry;
     }
+    
     public static void printDebug(String message)
     {
         Lib.debug(dbgVM, message);

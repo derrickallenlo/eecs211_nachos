@@ -74,34 +74,38 @@ public class MemoryController
   	 * and the missing page can swap in to physical memory
   	 * @param pid associated pid in inverted page table that vpn has not yet brought to memory
   	 * @param vpn missing virtual page number that has to swap in to physical memory
+         * @return 
   	 */
 	public TranslationEntry swapIn(int pid, int vpn)
 	{
 		
-		
-		int ppn = pageReplacementAlgorithm.findSwappedPage();
-		swapOut(ppn);//if only if it's already in the memory
-		TranslationEntry entry = null ;
+            int ppn = pageReplacementAlgorithm.findSwappedPage();
+            swapOut(ppn);//if only if it's already in the memory
+            TranslationEntry entry;
 		//now perform Swap In
-		//TODO -Richard 
-		SwapPage swapPage = VMKernel.swapFile.getSwapPage(pid, vpn);
-		// if the swapIn Page is on the disk
-		if(swapPage != null){
-			entry = swapPage.memoryPage.entry;
-			entry.valid = true;
-			entry.used =false;
-			entry.dirty =false;
-			boolean success = VMKernel.swapFile.read(swapPage.frameNumber, Machine.processor().getMemory(), 
-					Processor.makeAddress(ppn, 0), Processor.pageSize);
-			if(!success){
-				// read error and kill proceess
-				VMKernel.printDebug("Read error, machine terminated");
-				Machine.halt();
-			}
-		}else{
-			// the swapIn Page is not on the disk create a new one
-			entry = new TranslationEntry(vpn, ppn, true, false, false, false);
-		}
+            //TODO -Richard 
+            SwapPage swapPage = VMKernel.swapFile.getSwapPage(pid, vpn);
+            // if the swapIn Page is on the disk
+            if (swapPage != null)
+            {
+                entry = swapPage.memoryPage.entry;
+                entry.valid = true;
+                entry.used = false;
+                entry.dirty = false;
+                boolean success = VMKernel.swapFile.read(swapPage.frameNumber, Machine.processor().getMemory(),
+                                                         Processor.makeAddress(ppn, 0), Processor.pageSize);
+                if (!success)
+                {
+                    // read error and kill proceess
+                    VMKernel.printDebug("Read error, machine terminated");
+                    Machine.halt();
+                }
+            }
+            else
+            {
+                // the swapIn Page is not on the disk create a new one
+                entry = new TranslationEntry(vpn, ppn, true, false, false, false);
+            }
 		
 		 
 		

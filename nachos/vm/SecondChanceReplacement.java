@@ -35,7 +35,6 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
      * ******************************************************
      * */
 	private final String algorithmName = "Second Chance";
-    private int tick;
     private int current_frame;//pointer point to the location to be replace
     private int num_faults;
     private int used_frames;
@@ -49,9 +48,11 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
     }
 
     /**
-  	 * find a page to be replace when page fault occurred 
-  	 * @param non
-  	 */
+     * find a page to be replace when page fault occurred
+     *
+     * @return
+     */
+    @Override
     public int findSwappedPage()
     {
     	num_faults++;
