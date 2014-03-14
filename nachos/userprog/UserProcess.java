@@ -40,8 +40,8 @@ public class UserProcess
     private final int processId;
     private BinarySemaphore exitStatusAvailable;
     private int exitStatus;
-    private static final int EXIT_STATUS_STILL_ALIVE = 999;       // 0-7 status are used
-    private static final int EXIT_STATUS_UNHANDLED_EXC = 1000;
+    private static final int EXIT_STATUS_STILL_ALIVE = -1;
+    private boolean exitFromUnhandledException;
     private static final Lock processIdLock = new Lock();
     
     /**
@@ -49,7 +49,7 @@ public class UserProcess
      */
     public UserProcess()
     {
-
+        
         fileDescribtors = new OpenFile[16];//16 concurrent files include stdin and stdout
         fileDescribtors[0] = UserKernel.console.openForReading();//stdin    
         fileDescribtors[1] = UserKernel.console.openForWriting();//stdout    
@@ -61,6 +61,7 @@ public class UserProcess
         }
         
         this.exitStatus = EXIT_STATUS_STILL_ALIVE;
+        this.exitFromUnhandledException = false;
         
         //Process creation should give unique ID's
         processIdLock.acquire();
@@ -436,11 +437,6 @@ public class UserProcess
         processor.writeRegister(Processor.regA1, argv);
     }
     
-    private boolean isOrphan()
-    {
-        return (null == parent) || (parent.exitStatus != EXIT_STATUS_STILL_ALIVE);
-    }
-    
     private UThread getThread()
     {
         return uThread;
@@ -640,8 +636,7 @@ public class UserProcess
         }
 
         //Program executed syscall succesfully
-        if (childExitStatus != EXIT_STATUS_UNHANDLED_EXC          //some kernel exception
-            && childExitStatus != EXIT_STATUS_STILL_ALIVE)        //did not call exit()
+        if (false == child.exitFromUnhandledException)
         {
             return 1;
         }
@@ -1216,7 +1211,8 @@ public class UserProcess
 
             default:
                 printDebug( "Unexpected exception: " + Processor.exceptionNames[cause]);
-                exitStatus = EXIT_STATUS_UNHANDLED_EXC;
+                exitFromUnhandledException = true;
+                handleExit(EXIT_STATUS_STILL_ALIVE);
                 break;
         }
     }
