@@ -2,10 +2,10 @@ package nachos.userprog;
 
 import nachos.machine.*;
 import nachos.threads.*;
-import nachos.userprog.*;
 
 import java.io.EOFException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Collections;
 
@@ -45,6 +45,10 @@ public class UserProcess
     private boolean exitFromUnhandledException;
     private static final Lock processIdLock = new Lock();
     
+    //tracking all open files
+	protected static LinkedList<String> fileList = new LinkedList<String>();
+	protected static LinkedList<String> deletedFileList = new LinkedList<String>();
+    
     /**
      * Allocate a new process.
      */
@@ -53,7 +57,10 @@ public class UserProcess
         
         fileDescribtors = new OpenFile[16];//16 concurrent files include stdin and stdout
         fileDescribtors[0] = UserKernel.console.openForReading();//stdin    
-        fileDescribtors[1] = UserKernel.console.openForWriting();//stdout    
+        fileDescribtors[1] = UserKernel.console.openForWriting();//stdout 
+        fileList.add(fileDescribtors[0].getName());
+        fileList.add(fileDescribtors[1].getName());
+       
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++) 
@@ -485,12 +492,9 @@ public class UserProcess
     		printDebug("process call exist id: " + processId);
     		
     		// close all the open files threads 
-    		for (OpenFile file : fileDescribtors)
+    		for (int fdi = 0; fdi < 16; fdi++)
                 {
-                    if (null != file)
-                    {
-                        file.close();
-                    }
+    				handleClose(fdi);
                 }		
 
     		exitStatus = status;    //set exit status
@@ -679,29 +683,17 @@ public class UserProcess
     	}
     	
     	//found FileDecriptorIndex of supporting max 16 concurrent files per user program
-    	int firstAvailableIndex = -1;
     	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
     	{
-    		//scan all 16 spaces - not creating if it does exist
-    		if ((fileDescribtors[fdIndex] != null) && (fileDescribtors[fdIndex].getName().equals(fileName)) )
-    		{
-    			printDebug("\t The same file name detected - handleCreate");
-    			return -1;
-    		}
-    		
-    		if ((fileDescribtors[fdIndex] == null) && (firstAvailableIndex < 0))//creating it if it does not exist
-    		{
-    			firstAvailableIndex = fdIndex;
-    		}
+				if (fileDescribtors[fdIndex] == null)
+				{
+					printDebug("\tCreating File...");
+					fileDescribtors[fdIndex] = ThreadedKernel.fileSystem.open(fileName, true);//making new one set to true
+					fileList.add(fileDescribtors[fdIndex].getName());
+					return fdIndex;
+				}
     	}
     	
-    	if (firstAvailableIndex > 0)
-    	{
-    		printDebug("\tCreating File...");
-			fileDescribtors[firstAvailableIndex] = ThreadedKernel.fileSystem.open(fileName, true);//making new one set to true
-			return firstAvailableIndex;
-    	}
-		
     	printDebug("\tFile Descriptor has reached the maxium - 16 concurrent files - handleCreate");
         return -1;
     }
@@ -731,47 +723,20 @@ public class UserProcess
     		return -1;
     	}
     	
-    	//find it from array of file decribtors 
     	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
     	{
-    		if (fileDescribtors[fdIndex] != null && fileDescribtors[fdIndex].getName().equals(fileName))
-    		{
-    			printDebug("\t Opening File...");
-    			ThreadedKernel.fileSystem.open(fileName, false);//not making the new file set to false
-    			return fdIndex;
-    		}
-    	}
-    	
-    	//if not in current file descibtors, find file and load to fd
-    	int firstAvailableIndex = -1;
-    	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
-    	{
-    		//scan all 16 spaces - not creating if it does exist
-    		if ((fileDescribtors[fdIndex] != null) && (fileDescribtors[fdIndex].getName().equals(fileName)) )
-    		{
-    			printDebug("\t The same file name detected - handleOpen");
-    			return -1;
-    		}
-    		
-    		if ((fileDescribtors[fdIndex] == null) && (firstAvailableIndex < 0))//creating it if it does not exist
-    		{
-    			firstAvailableIndex = fdIndex;
-    		}
-    	}
-    	
-    	if (firstAvailableIndex > 0)
-    	{
-			fileDescribtors[firstAvailableIndex] = ThreadedKernel.fileSystem.open(fileName, false);//making new one set to true
-			if (fileDescribtors[firstAvailableIndex] !=null)
-			{
-				printDebug("\t Opening File...");
-				return firstAvailableIndex;
-			}
-			else
-			{
-				printDebug("\t Can't open the file or folder is not supported - handleOpen");
-				return -1;
-			}
+				if (fileDescribtors[fdIndex] == null)
+				{
+					printDebug("\tCreating File...");
+					fileDescribtors[fdIndex] = ThreadedKernel.fileSystem.open(fileName, false);//making new one set to true
+					if (fileDescribtors[fdIndex] == null)
+					{
+						printDebug("\tFile not exist or can't open - handleOpen");
+				    	return -1;
+					}
+					fileList.add(fileDescribtors[fdIndex].getName());
+					return fdIndex;
+				}
     	}
     	printDebug("\tFile Descriptor has reached the maxium - 16 concurrent files - handleOpen");
     	return -1;	
@@ -994,11 +959,25 @@ public class UserProcess
     		return -1;
     	}
     	
-    	fileDescribtors[fd].close();
-    	fileDescribtors[fd] = null;
-    	printDebug("\t file closed succesfully - handleClose");
+		OpenFile file = fileDescribtors[fd];
+		fileDescribtors[fd] = null;
+		file.close();
+
+		String fileName = file.getName();
+
+		fileList.remove(fileName);
+		
+		if (fileList.contains(fileName))
+		{
+			if (deletedFileList.contains(fileName)) 
+			{
+				deletedFileList.remove(fileName);
+				UserKernel.fileSystem.remove(fileName);
+			}
+		}
+
+		return 0;
         
-        return 0;
     }
 
     /**
@@ -1029,27 +1008,18 @@ public class UserProcess
     		return -1;
         }
         
-        //make file Describtors available to the process if any file open match
-        for (int i = 0; i < 16; i++)
+        if (fileList.contains(fileName)) 
         {
-        	if (fileDescribtors[i] != null && fileDescribtors[i].getName().equals(fileName))
-                {
-                    fileDescribtors[i].close();//release any system source
-                    fileDescribtors[i] = null;
-                }
-            }
-        
-    	if(ThreadedKernel.fileSystem.remove(fileName))
-    	{
-    		printDebug("\t File Name unlink successfuly - handleUnlink");
-    		return 0;
-        }
-    	else
-    	{
-    		return -1;
-    	}
-        
-        }
+        	deletedFileList.add(fileName);
+		}
+		else 
+		{
+			if (!UserKernel.fileSystem.remove(fileName))
+				return -1;
+		}
+
+		return 0;
+    }
 
     //================================================================================================
     //
@@ -1379,7 +1349,7 @@ public class UserProcess
         Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
         
         int firstPageToXfer = Machine.processor().pageFromAddress(vaddr);
-	int lastPageToXfer = Machine.processor().pageFromAddress(vaddr+length);
+        int lastPageToXfer = Machine.processor().pageFromAddress(vaddr+length);
         int amount = 0;
         
         byte[] memory = Machine.processor().getMemory();
@@ -1456,4 +1426,5 @@ public class UserProcess
         
         return amount;
     }
+    
 }
