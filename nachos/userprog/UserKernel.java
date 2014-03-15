@@ -54,8 +54,6 @@ public class UserKernel extends ThreadedKernel
                 }
 
                 freePagesLock = new Lock();
-
-                System.out.println("Initialized freePhysicalPages LL at size: " + freePhysicalPages.size() + " pages");
 	}
 
 	/**

@@ -7,6 +7,7 @@ import nachos.userprog.*;
 import java.io.EOFException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Collections;
 
 /**
  * Encapsulates the state of a user process that is not contained in its user
@@ -401,13 +402,15 @@ public class UserProcess
      */
     protected void unloadSections()
     {
+        coff.close();
         UserKernel.freePagesLock.acquire();
 
         for (int i=0; i<numPages; i++)
         {
             UserKernel.freePhysicalPages.add(pageTable[i].ppn);
         }
-
+        
+        Collections.sort(UserKernel.freePhysicalPages);
         UserKernel.freePagesLock.release();
     }
 
@@ -482,13 +485,13 @@ public class UserProcess
     		printDebug("process call exist id: " + processId);
     		
     		// close all the open files threads 
-    		for (OpenFile file : fileDescribtors) 
+    		for (OpenFile file : fileDescribtors)
                 {
-                    if (null != file) 
+                    if (null != file)
                     {
                         file.close();
                     }
-                }			
+                }		
 
     		exitStatus = status;    //set exit status
 
@@ -501,11 +504,11 @@ public class UserProcess
     		if (processId == 0) 
                 {
     			Kernel.kernel.terminate(); //root exiting
-    		} 
-                else 
+    		} 	
+                else
                 {
-    			KThread.finish();
-    		}			   						    	   		      
+                    KThread.finish();
+                }
 
         return exitStatus; //this never happens...
     }
@@ -624,7 +627,7 @@ public class UserProcess
         allProcess.put(pid, null);  //remove reference to child (can't reuse id)
         child.parent = null;        //dereference parent in case parent deleted
         
-        child.exitStatusAvailable.waitFor();
+        child.exitStatusAvailable.waitFor();    
         int childExitStatus = child.getExitStatus();
         IntegerBufferMap data = new IntegerBufferMap(1);
         data.setIntLE(0, childExitStatus);
@@ -994,7 +997,7 @@ public class UserProcess
     	fileDescribtors[fd].close();
     	fileDescribtors[fd] = null;
     	printDebug("\t file closed succesfully - handleClose");
-    	
+        
         return 0;
     }
 
@@ -1030,23 +1033,23 @@ public class UserProcess
         for (int i = 0; i < 16; i++)
         {
         	if (fileDescribtors[i] != null && fileDescribtors[i].getName().equals(fileName))
-        	{
-        		fileDescribtors[i].close();//release any system source
-        		fileDescribtors[i] = null;
-        	}
-        }
+                {
+                    fileDescribtors[i].close();//release any system source
+                    fileDescribtors[i] = null;
+                }
+            }
         
     	if(ThreadedKernel.fileSystem.remove(fileName))
     	{
     		printDebug("\t File Name unlink successfuly - handleUnlink");
     		return 0;
-    	}
+        }
     	else
     	{
     		return -1;
     	}
-
-    }
+        
+        }
 
     //================================================================================================
     //
@@ -1440,7 +1443,7 @@ public class UserProcess
             {
                 System.arraycopy(data, offset+amount, memory, Machine.processor().makeAddress(pageTable[i].ppn, pageOffsetStart), pageOffsetEnd-pageOffsetStart);
             }
-      
+           
             amount += (pageOffsetEnd-pageOffsetStart);
             
             pageTable[i].used = true;
