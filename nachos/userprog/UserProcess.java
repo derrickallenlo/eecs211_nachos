@@ -115,8 +115,104 @@ public class UserProcess
 
         uThread = new UThread(this);
         uThread.setName(name).fork();
-
+        
+        //selfTest();
+        
         return true;
+    }
+    
+    public void selfTest()
+    {
+        System.out.println("Runnign Self Test..");
+        
+        System.out.println("----LEVEL 1 TESTS----");
+        System.out.println("Tests readVirtualMemory with an invalid range (vAddr = -100, data = 8 byte array)");
+        byte[] tempByteArray = new byte[8];
+        int tempVAddr = -100;
+        int returnAmount = 999;
+        returnAmount = readVirtualMemory(tempVAddr, tempByteArray);
+        
+        if (returnAmount == 0)
+        {
+             System.out.println("PASS -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        else
+        {
+            System.out.println("FAIL!! -- The number of bytes successfully transferred: " + returnAmount);
+            returnAmount = 999;
+        }
+        
+        System.out.println("");
+        System.out.println("tests writeVirtualMemory with an invalid range (vAddr = -100, data = 8 byte array)");
+        
+        returnAmount = writeVirtualMemory(tempVAddr, tempByteArray);
+        
+        if (returnAmount == 0)
+        {
+             System.out.println("PASS -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        else
+        {
+            System.out.println("FAIL!! -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        
+        System.out.println("");
+        System.out.println("");
+        System.out.println("----LEVEL 2 TESTS----");
+        System.out.println("tests writeVirtualMemory small valid range, make sure wrote right data (vAddr = 2, data = 8 byte array)");
+        byte[] tempByteArray2A = new byte[8];
+        int tempVAddr2A = 2;
+        int j = 0;
+        returnAmount = 8;
+        
+        
+        for (byte i = 8; i > 0; i--)
+        {
+            tempByteArray2A[j] = i;
+            j++;
+        }
+        
+        returnAmount = writeVirtualMemory(tempVAddr2A, tempByteArray2A);
+        
+        if (returnAmount == 8)
+        {
+             System.out.println("PASS -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        else
+        {
+            System.out.println("FAIL!! -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        
+        
+        System.out.println("tests readVirtualMemory small valid range, make sure read right data (vAddr = 2, data = 8 byte array)");
+        byte[] tempByteArray2B = new byte[8];
+        returnAmount = 999;
+        
+        returnAmount = readVirtualMemory(tempVAddr2A, tempByteArray2B);
+        
+        for (int i = 0; i < 8; i++)
+        {
+            System.out.println("ByteArray Reading index i: " + tempByteArray2B[i]);
+        }
+        
+        if (returnAmount == 8)
+        {
+             System.out.println("PASS -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        else
+        {
+            System.out.println("FAIL!! -- The number of bytes successfully transferred: " + returnAmount);
+        }
+        
+        System.out.println("");
+        System.out.println("");
+        System.out.println("----LEVEL 3 TESTS----");
+        System.out.println("tests readVirtualMemory with a large valid range, make sure read right data");
+        System.out.println("tests writeVirtualMemory with a large valid range, make sure wrote right data");
+        
+        
+        
+        
     }
 
     /**
