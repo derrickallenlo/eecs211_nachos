@@ -9,42 +9,43 @@ import nachos.machine.OpenFile;
 import nachos.machine.Processor;
 import nachos.threads.ThreadedKernel;
 
-public class SwapFile
-{
-	//TODO 
-    //assigned to Richard
-    //The inverted page table must only contain entries for pages that are actually in physical
-    //memory. You will need to maintain a separate data structure for locating pages in swap
-
-	//If a process experiences an I/O error when accessing the swap file, you should kill the
-    //process.			
+public class SwapPageManager
+{		
     public static final String fileName = "SwapFile";
 
-    private int size;
-    private OpenFile file;
-    private LinkedList<Integer> frames = new LinkedList<Integer>();
-    private Hashtable<Integer, SwapPage> swapPageTable = new Hashtable<Integer, SwapPage>(); //pin^vpn
+    private static int FREE_FRAMES_CREATTED;
+    private static OpenFile file;
+    private static LinkedList<Integer> RECYCLED_FRAMES;
+    private static Hashtable<Integer, SwapPage> SWAP_MAP; //pin^vpn
 
     // Constructor 
-    public SwapFile()
+    private SwapPageManager()
     {
-        size = 0;
+        
+    }
+    
+    public static void initialize()
+    {
+        FREE_FRAMES_CREATTED = 0;
         file = ThreadedKernel.fileSystem.open(fileName, true);
-        byte[] buf = new byte[Processor.pageSize * Machine.processor().getNumPhysPages()];
-        file.write(buf, 0, buf.length);
+        byte[] b = new byte[Processor.pageSize * Machine.processor().getNumPhysPages()];
+        file.write(b, 0, b.length);
+        
+        RECYCLED_FRAMES = new LinkedList<Integer>();
+        SWAP_MAP = new Hashtable<Integer, SwapPage>();
     }
 
     // close the file
-    public void close()
+    public static void close()
     {
         file.close();
         ThreadedKernel.fileSystem.remove(fileName);
     }
 
     // write to the swap frame
-    public boolean write(int frameNumber, byte[] buf, int offset, int length)
+    public static boolean write(int frameNumber, byte[] buf, int offset, int length)
     {
-        if (frameNumber > size)
+        if (frameNumber > FREE_FRAMES_CREATTED)
         {
             return false;
         }
@@ -66,9 +67,9 @@ public class SwapFile
     }
 
     // read the swap frame
-    public boolean read(int frameNumber, byte[] buf, int offset, int length)
+    public static boolean read(int frameNumber, byte[] buf, int offset, int length)
     {
-        if (frameNumber > size)
+        if (frameNumber > FREE_FRAMES_CREATTED)
         {
             return false;
         }
@@ -81,51 +82,54 @@ public class SwapFile
         else return numBytes == Processor.pageSize;
     }
 
-    // allocate a new frame 
-    public int newFrame()
-    {
-        if (frames.isEmpty())
-        {
-            return size++;
-        }
-        Integer result = frames.removeFirst();
-        return result;
-    }
-
     // allocate a new SwapPage when Memory page first time swap out 
-    public SwapPage newSwapPage(MemoryPage memoryPage)
+    public static SwapPage newSwapPage(MemoryPage memoryPage)
     {
-        SwapPage swapPage = swapPageTable.get(memoryPage.processId ^ memoryPage.entry.vpn);
+        SwapPage swapPage = SWAP_MAP.get(memoryPage.processId ^ memoryPage.entry.vpn);
         if (swapPage == null)
         {
-            swapPage = new SwapPage(memoryPage, newFrame());
-            swapPageTable.put(memoryPage.processId ^ memoryPage.entry.vpn, swapPage);
+            int newPage;
+            if (RECYCLED_FRAMES.isEmpty())
+            {
+                newPage = FREE_FRAMES_CREATTED++;
+            }
+            else
+            {
+                newPage = RECYCLED_FRAMES.removeFirst();
+            }
+            swapPage = new SwapPage(memoryPage, newPage);
+            SWAP_MAP.put(memoryPage.processId ^ memoryPage.entry.vpn, swapPage);
         }
         return swapPage;
     }
 
     // return the SwapPage referenced by pid and vpn in disk 
-    public SwapPage getSwapPage(int pid, int vpn)
+    public static SwapPage getSwapPage(int pid, int vpn)
     {
-        return swapPageTable.get(pid ^ vpn);
+        return SWAP_MAP.get(pid ^ vpn);
     }
 
     // delete a SwapPage 
-    public boolean deleteSwapPage(int pid, int vpn)
+    public static boolean deleteSwapPage(int pid, int vpn)
     {
         SwapPage swapPage = getSwapPage(pid, vpn);
         if (swapPage == null)
         {
             return false;
         }
-        frames.add(swapPage.frameNumber);
+        RECYCLED_FRAMES.add(swapPage.frameNumber);
         return true;
     }
 
     // return open file
-    public OpenFile getSwapFile()
+    public static OpenFile getSwapFile()
     {
         return file;
     }
 
+    public static int getMaxPossibleOfFreeFrames()
+    {
+        return FREE_FRAMES_CREATTED;
+    }
+    
 }

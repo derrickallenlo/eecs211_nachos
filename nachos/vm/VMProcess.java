@@ -10,6 +10,7 @@ import nachos.vm.*;
  */
 public class VMProcess extends UserProcess 
 {
+        private LazyCoffLoader loader;
 	private static final int pageSize = Processor.pageSize;
 	private static final char dbgProcess = 'a';
 	private static final char dbgVM = 'v';
@@ -37,7 +38,7 @@ public class VMProcess extends UserProcess
 	 */
 	public void restoreState() 
         {
-		//super.restoreState();  TODO delete this?
+		//super.restoreState();         //delete this?
 	}
 
 	/**
@@ -48,8 +49,10 @@ public class VMProcess extends UserProcess
 	 */
 	protected boolean loadSections() 
         {
-		return super.loadSections();
-                //TO DO BY DERRICk
+            loader = new LazyCoffLoader(coff);
+            
+	//	return super.loadSections();
+            return true;   
 	}
 
 	/**
@@ -57,7 +60,9 @@ public class VMProcess extends UserProcess
 	 */
 	protected void unloadSections() 
         {
+            
 		super.unloadSections();
+                //TODO BY DERRICk
 	}
 
 	/**
@@ -67,20 +72,18 @@ public class VMProcess extends UserProcess
 	 * 
 	 * @param cause the user exception that occurred.
 	 */
-	public void handleException(int cause) 
-	{
-		Processor processor = Machine.processor();
-
-		switch (cause) 
+        public void handleException(int cause)
         {
-        	case Processor.exceptionTLBMiss:
-        		handleTLBMiss();
-        		break;
-        	default:
-        		super.handleException(cause);
-        		break;
-		}
-	}
+            switch (cause)
+            {
+                case Processor.exceptionTLBMiss:
+                    handleTLBMiss();
+                    break;
+                default:
+                    super.handleException(cause);
+                    break;
+            }
+        }
         
         /**
 	 * Handle a TLB Miss exception.
@@ -105,6 +108,13 @@ public class VMProcess extends UserProcess
             }
           
             //Write out translation to TLB
-            VMKernel.tlbController.addEntry(translatedEntry);
+            if (translatedEntry != null)
+            {
+                VMKernel.tlbController.addEntry(translatedEntry);
+            }
+            else
+            {
+                // TODO what happens here?
+            }
         }
 }

@@ -15,7 +15,7 @@ public class VMKernel extends UserKernel
 	// dummy variables to make javac smarter
 	private static VMProcess dummy1 = null;
 	private static final char dbgVM = 'v';    
-    public static Hashtable<Integer,Integer> invertedPageTable;//pid^vpn, ppn
+    public static Hashtable<Integer,Integer> ProcessToPageTable;//pid^vpn, ppn
     
     
     
@@ -28,7 +28,7 @@ public class VMKernel extends UserKernel
     public static MemoryPage[] physicalMemoryMap;
     public static TLBController tlbController;
     public static MemoryController memoryController;
-    public static SwapFile swapFile;
+    public static SwapPageManager swapFile;
     public static Lock invertedPageTableLock; //only one lock for all pages that prevent other process tries to move page while swapping
     
 	/**
@@ -48,11 +48,11 @@ public class VMKernel extends UserKernel
 	{
 		super.initialize(args);
 		physicalMemoryMap = new MemoryPage[Machine.processor().getNumPhysPages()];
-		invertedPageTable = new Hashtable<Integer,Integer>();
+		ProcessToPageTable = new Hashtable<Integer,Integer>();
 		tlbController = new TLBController();
                 invertedPageTableLock = new Lock();
                 memoryController = new MemoryController();
-                swapFile = new SwapFile();
+                SwapPageManager.initialize();
 	}
 
 	/**
@@ -76,12 +76,11 @@ public class VMKernel extends UserKernel
 	 */
 	public void terminate() 
 	{
-		super.terminate();
-		//TODO - Richard
-		//The swap file should be closed and deleted when VMKernel.terminate() is called.
-		VMKernel.swapFile.close();
+		SwapPageManager.close();
 		printDebug(memoryController.pageReplacementAlgorithm.getAlgorithmName()+
 				"Total Page Fault: "+memoryController.pageReplacementAlgorithm.getNumberPageFault());
+                
+                super.terminate();
 	}
         
     public static TranslationEntry getMemoryPageEntryFromPhyMem(int ProcessId, int virtualPageNumber)
@@ -89,7 +88,7 @@ public class VMKernel extends UserKernel
         TranslationEntry entry = null;
         
         //Determine PPN from invertedPageTable
-        Integer ppn = invertedPageTable.get(ProcessId ^ virtualPageNumber);
+        Integer ppn = ProcessToPageTable.get(ProcessId ^ virtualPageNumber);
         
         //search physical memory map using hashkey
         if (ppn != null)
@@ -106,11 +105,13 @@ public class VMKernel extends UserKernel
     
     
     /**
-  	 * Handle a Page Fault for UserProcess
-  	 * handle missing page in physical memory
-  	 * @param associated pid in inverted page table that vpn has not yet brought to memory 
-  	 * @param vpn missing virtual page number
-  	 */
+     * Handle a Page Fault for UserProcess handle missing page in physical
+     * memory
+     *
+     * @param pid
+     * @param vpn missing virtual page number
+     * @return
+     */
     public static TranslationEntry handlePageFault(int pid, int vpn)
     {
     	printDebug(UThread.currentThread().getName() + ", handleTLB miss exception: " + vpn);

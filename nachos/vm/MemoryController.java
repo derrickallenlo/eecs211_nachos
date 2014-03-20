@@ -40,7 +40,7 @@ public class MemoryController
 		{	
 			// TODO- Added By Richard
 			swapOutPage.entry.valid = false;
-			VMKernel.invertedPageTable.remove(swapOutPage.processId^swapOutPage.entry.vpn);
+			VMKernel.ProcessToPageTable.remove(swapOutPage.processId^swapOutPage.entry.vpn);
 			//if modified, update value at disk (ie. write() )
 			//otherwise should not write any pages to the swap file
 			//Your page-replacement policy should not write any pages to the swap file...
@@ -48,8 +48,8 @@ public class MemoryController
 			{
 				//TODO - Richard
 				//update disk value with this entry
-				SwapPage swapPage = VMKernel.swapFile.newSwapPage(swapOutPage);
-				boolean success = VMKernel.swapFile.write(swapPage.frameNumber, Machine.processor().getMemory(), 
+				SwapPage swapPage = SwapPageManager.newSwapPage(swapOutPage);
+				boolean success = SwapPageManager.write(swapPage.frameNumber, Machine.processor().getMemory(), 
 										Processor.makeAddress(ppn, 0), Processor.pageSize);
 				if(!success){
 					//TODO - Richard 
@@ -64,7 +64,7 @@ public class MemoryController
 			//make sure TLB doesn't keep this entry because it has been replaced under page replacement
 				
 			swapOutPage.entry.valid = false;
-			VMKernel.invertedPageTable.remove(ppn);
+			VMKernel.ProcessToPageTable.remove(ppn);
 			
 		}
 	}
@@ -84,7 +84,7 @@ public class MemoryController
             TranslationEntry entry;
 		//now perform Swap In
             //TODO -Richard 
-            SwapPage swapPage = VMKernel.swapFile.getSwapPage(pid, vpn);
+            SwapPage swapPage = SwapPageManager.getSwapPage(pid, vpn);
             // if the swapIn Page is on the disk
             if (swapPage != null)
             {
@@ -92,7 +92,7 @@ public class MemoryController
                 entry.valid = true;
                 entry.used = false;
                 entry.dirty = false;
-                boolean success = VMKernel.swapFile.read(swapPage.frameNumber, Machine.processor().getMemory(),
+                boolean success = SwapPageManager.read(swapPage.frameNumber, Machine.processor().getMemory(),
                                                          Processor.makeAddress(ppn, 0), Processor.pageSize);
                 if (!success)
                 {
@@ -110,7 +110,7 @@ public class MemoryController
 		 
 		
 		
-		VMKernel.invertedPageTable.put(pid^vpn, ppn);//update ipt
+		VMKernel.ProcessToPageTable.put(pid^vpn, ppn);//update ipt
 		MemoryPage newPage = new MemoryPage(pid, vpn, entry);
 		VMKernel.physicalMemoryMap[ppn] = newPage;//update Core Map of tracking all ppn
 		
