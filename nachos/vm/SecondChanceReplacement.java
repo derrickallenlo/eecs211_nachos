@@ -107,7 +107,7 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
     }
     
     public void removePage(int ppn)
-	{ 	
-    	freeFrames.remove((Integer)ppn);
-	}
+    { 	
+    	freeFrames.add((Integer)ppn);
+    }
 }
