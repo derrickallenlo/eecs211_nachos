@@ -583,7 +583,7 @@ public class UserProcess
      *
      * exit() never returns.
      */
-    private int handleExit(int status)
+    protected int handleExit(int status)
     {
     		printDebug("process call exist id: " + processId);
     		

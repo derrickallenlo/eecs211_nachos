@@ -60,9 +60,23 @@ public class VMProcess extends UserProcess
 	 */
 	protected void unloadSections() 
         {
-            
-		super.unloadSections();
-                //TODO BY DERRICk
+                coff.close();
+
+		VMKernel.tlbController.clear();
+                
+                //Clear out Inverted Page table
+                for (int i = 0; i < numPages; i++) 
+                {
+                    Integer ppn = VMKernel.ProcessToPageTable.remove(super.getProcessID() ^ i);
+                    
+                    if (ppn != null)
+                    {
+                        VMKernel.physicalMemoryMap[ppn].entry.valid = false;
+                        //VMKernel.memoryController.removePage(ppn) //***TO TO BY TIM***
+                    }
+                    
+                    SwapPageManager.deleteSwapPage(super.getProcessID(), i);
+                }
 	}
 
 	/**
@@ -114,7 +128,8 @@ public class VMProcess extends UserProcess
             }
             else
             {
-                // TODO what happens here?
+                //ERROR! Could not find page
+                handleExit(-1);
             }
         }
 }
