@@ -18,4 +18,9 @@ public class MemoryPage
             this.virtualPageNumber = virtualPageNumber;
             this.entry = entry;
     }
+    
+    public void setTranslationEntry(TranslationEntry entry)
+    {
+        this.entry = entry;
+    }
 }

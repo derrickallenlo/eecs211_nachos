@@ -1,41 +1,9 @@
-// =============================================================================
-//
-//            Copyright 2000-2014 Western Digital Corporation
-//
-//                         All rights reserved.
-//
-//    This code is CONFIDENTIAL and a TRADE SECRET of Western Digital
-//    Corporation and its affiliates ("WDC").  This code is protected
-//    under copyright laws as an unpublished work of WDC.  Notice is
-//    for informational purposes only and does not imply publication.
-//
-//    The receipt or possession of this code does not convey any rights to
-//    reproduce or disclose its contents, or to manufacture, use, or sell
-//    anything that it may describe, in whole or in part, without the
-//    specific written consent of WDC.  Any reproduction or distribution
-//    of this code without the express written consent of WDC is strictly
-//    prohibited, is a violation of the copyright laws, and may subject
-//    you to criminal prosecution.
-//
-//    Use, duplication or disclosure by any commercial industry (public or
-//    private), private individual, or by any Government Agency, without
-//    an expressed written consent of release from WDC, is subject to
-//    restriction set forth in paragraph (b)(3)(B) of the Rights in
-//    Technical Data and Computer Software clause in DAR 7-104.9(a).
-//
-//    Manufacturer is:
-//
-//        Western Digital Corporation
-//        3355 Michelson Drive
-//        Suite 100
-//        Irvine, CA 92612-0651
-//        949-672-7000
-//
-// =============================================================================
-
 package nachos.vm;
 
 import nachos.machine.Coff;
+import nachos.machine.CoffSection;
+import nachos.machine.Machine;
+import nachos.machine.Processor;
 import nachos.machine.TranslationEntry;
 
 /**
@@ -44,31 +12,83 @@ import nachos.machine.TranslationEntry;
  */
 public class LazyCoffLoader
 {
-    private Coff coff;
+    private final Coff coff;
+    private final CodePage[] pagesOfCode;
 
     public LazyCoffLoader(Coff coff)
     {
         this.coff = coff;
-    }
-    
-    
-    
-    
-    
-    
+        
+        int codeNumPages = 0;
+		for (int s = 0; s < coff.getNumSections(); s++) {
+			CoffSection section = coff.getSection(s);
+			codeNumPages += section.getLength();
+		}
 
-    public TranslationEntry load(MemoryPage item, int ppn)
-    {
-        return new TranslationEntry();
+
+		pagesOfCode = new CodePage[codeNumPages];
+
+		for (int s = 0; s < coff.getNumSections(); s++) {
+			CoffSection section = coff.getSection(s);
+			for (int i = 0; i < section.getLength(); i++) {
+				int virtualPage = section.getFirstVPN() + i;
+				pagesOfCode[virtualPage] = new CodePage(s, i);
+			}
+		}
     }
+    
+    
+    private boolean isCodePageNumber(int virtualPage) {
+		return virtualPage >= 0 && virtualPage < pagesOfCode.length;
+	}
+
+
+
+    public TranslationEntry load(int pid, int virtualPage, int physicalPage)
+    {
+       
+            return isCodePageNumber(virtualPage) ? loadCode(virtualPage, physicalPage) : loadStack(virtualPage, physicalPage);
+
+
+    }
+
+    	private TranslationEntry loadCode(int virtualPage, int physicalPage) {
+		CoffSection section = coff.getSection(pagesOfCode[virtualPage].section);
+		TranslationEntry entry = new TranslationEntry(virtualPage, physicalPage, true, section
+				.isReadOnly(), false, false);
+		section.loadPage(pagesOfCode[virtualPage].offset, physicalPage);
+		return entry;
+	}
+
+	private TranslationEntry loadStack(int virtualPage, int physicalPage) {
+		fillMemory(physicalPage);                                                    //TODO remove me!
+		return new TranslationEntry(virtualPage, physicalPage, true, false, false, false);
+	}
+    
+	private void fillMemory(int physicalPage) {
+		int pageStart = Processor.makeAddress(physicalPage, 0);
+                int pageEnd = pageStart + Processor.pageSize;
+		for (int i = pageStart; i < pageEnd; i++)       //TODO system.array copy an empty buffer
+                {
+			Machine.processor().getMemory()[i] = 0;
+                }
+	}
 
     public Coff getCoff()
     {
         return coff;
     }
     
-    
-    
+    private class CodePage 
+    {
+		private CodePage(int section, int offset) {
+			this.section = section;
+			this.offset = offset;
+		}
+
+		private int section;
+		private int offset;
+	}
     
     
 }

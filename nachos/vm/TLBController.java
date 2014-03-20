@@ -65,8 +65,8 @@ public class TLBController
                 TranslationEntry entry = Machine.processor().readTLBEntry(i);
 		if (entry.valid)
                 {
-			VMKernel.physicalMemoryMap[entry.ppn].entry = entry;
                         entry.valid = false;
+			VMKernel.physicalMemoryMap[entry.ppn].setTranslationEntry(entry);
                         Machine.processor().writeTLBEntry(i, entry);
                 }
         }

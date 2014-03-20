@@ -112,7 +112,7 @@ public class VMKernel extends UserKernel
      * @param vpn missing virtual page number
      * @return
      */
-    public static TranslationEntry handlePageFault(int pid, int vpn)
+    public static TranslationEntry handlePageFault(int pid, int vpn, LazyCoffLoader loader)
     {
     	printDebug(UThread.currentThread().getName() + ", handleTLB miss exception: " + vpn);
     	/*
@@ -125,7 +125,7 @@ public class VMKernel extends UserKernel
     	invertedPageTableLock.acquire();
     	
     	//Swap in and also swap out within the same method
-    	TranslationEntry missedTranslatedEntry = memoryController.swapIn(pid, vpn);
+    	TranslationEntry missedTranslatedEntry = memoryController.swapIn(pid, vpn, loader);
     	
     	invertedPageTableLock.release();
     	
