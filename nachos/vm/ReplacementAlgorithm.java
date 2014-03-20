@@ -53,5 +53,7 @@ public abstract class ReplacementAlgorithm
   	 * @return String name 
   	 */
     abstract String getAlgorithmName();
+    
+    abstract void removePage(int ppn);
 
 }

@@ -62,7 +62,8 @@ public class MemoryController
 			
 			//TODO - Derrick 
 			//make sure TLB doesn't keep this entry because it has been replaced under page replacement
-				
+			VMKernel.tlbController.invalidateEntry(swapOutPage);
+			
 			swapOutPage.entry.valid = false;
 			VMKernel.ProcessToPageTable.remove(ppn);
 			
@@ -116,4 +117,10 @@ public class MemoryController
 		
 		return entry;
 	}
+	
+	public void removePage(int ppn)
+	{
+		pageReplacementAlgorithm.removePage(ppn);
+	}
+	
 }

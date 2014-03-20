@@ -72,7 +72,7 @@ public class VMProcess extends UserProcess
                     if (ppn != null)
                     {
                         VMKernel.physicalMemoryMap[ppn].entry.valid = false;
-                        //VMKernel.memoryController.removePage(ppn) //***TO TO BY TIM***
+                        VMKernel.memoryController.removePage(ppn); //***TO TO BY TIM***
                     }
                     
                     SwapPageManager.deleteSwapPage(super.getProcessID(), i);

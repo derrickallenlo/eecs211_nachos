@@ -35,16 +35,22 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
      * ******************************************************
      * */
 	private final String algorithmName = "Second Chance";
-    private int current_frame;//pointer point to the location to be replace
+    private int current_frame;//pointer point to the location to be check
     private int num_faults;
-    private int used_frames;
+    //private int used_frames;
+    private int replace_frame;
+    private LinkedList<Integer> freeFrames = new LinkedList<Integer>();
 
     public SecondChanceReplacement()
     {
         super();
         current_frame = 0;
         num_faults = 0;
-        used_frames = 0;
+        //used_frames = 0;
+        replace_frame = 0;
+        
+        for (int i = 0; i < Machine.processor().getNumPhysPages(); i++)
+        	freeFrames.add(i);
     }
 
     /**
@@ -57,16 +63,19 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
     {
     	num_faults++;
     	
-        if (used_frames < Machine.processor().getNumPhysPages())
+        if (!freeFrames.isEmpty())
         {
+        	replace_frame = freeFrames.removeFirst();
+        	
         	//used bit set to true will happen in Processor.translate()
-            return used_frames++;
+        	return replace_frame;
         }
         else
         {
             /* evict page pointed to by current_frame and if only if its u-bit is false, replace with new page, and increment. */
             while (VMKernel.physicalMemoryMap[current_frame].entry.used)//search for used-bit contain 0
             {
+            	//used bit set to true will happen in Processor.translate()
             	VMKernel.physicalMemoryMap[current_frame].entry.used = false;
 
                 current_frame = ++current_frame % Machine.processor().getNumPhysPages();//advance next frame
@@ -78,9 +87,11 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
 
             //after the frames are full check the replacement
             /* advance current frame. */
+            replace_frame = current_frame;//we found which frame will be replaced
             current_frame++;
             current_frame %= Machine.processor().getNumPhysPages();
-            return current_frame;
+            
+            return replace_frame;
         }
     }
     
@@ -94,4 +105,9 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
     {
     	return algorithmName;
     }
+    
+    public void removePage(int ppn)
+	{ 	
+    	freeFrames.remove((Integer)ppn);
+	}
 }
