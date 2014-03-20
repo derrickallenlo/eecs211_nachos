@@ -25,9 +25,24 @@ public class TLBController
         //If table is full..
         Machine.processor().writeTLBEntry(Lib.random(Machine.processor().getTLBSize()), entry);
         
-        //Search for oldest and replace
+        //Search for oldest and replace instead of just use random
         //TODO
     }
+    
+    //See if MemoryPage is in TLB and mark as as Invalid if not already
+    public void invalidateEntry(MemoryPage pageToInvalidate)
+    {
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++)
+        {
+            if (Machine.processor().readTLBEntry(i).ppn == pageToInvalidate.entry.ppn) 
+            {
+                pageToInvalidate.entry.valid = false;
+                Machine.processor().writeTLBEntry(i, pageToInvalidate.entry);
+            }
+        }
+    }
+    
+    
     public void flush()
     {
         //Write all TLB entries back to the Page Table
