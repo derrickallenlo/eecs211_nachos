@@ -76,7 +76,7 @@ public class MemoryController
   	 * @param vpn missing virtual page number that has to swap in to physical memory
          * @return 
   	 */
-	public TranslationEntry swapIn(int pid, int vpn)
+	public TranslationEntry swapIn(int pid, int vpn, LazyCoffLoader loader)
 	{
 		
             int ppn = pageReplacementAlgorithm.findSwappedPage();
@@ -103,13 +103,10 @@ public class MemoryController
             }
             else
             {
-                // the swapIn Page is not on the disk create a new one
-                entry = new TranslationEntry(vpn, ppn, true, false, false, false);
+                entry = loader.load(pid, vpn, ppn);
             }
-		
-		 
-		
-		
+
+            //found  a page by now, map virtual to physical
 		VMKernel.ProcessToPageTable.put(pid^vpn, ppn);//update ipt
 		MemoryPage newPage = new MemoryPage(pid, vpn, entry);
 		VMKernel.physicalMemoryMap[ppn] = newPage;//update Core Map of tracking all ppn

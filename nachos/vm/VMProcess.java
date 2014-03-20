@@ -104,7 +104,7 @@ public class VMProcess extends UserProcess
                 //PAGEFAULT! handle page fault accordingly
             	//Kernel handle the page fault
             	//1. Keep tracking current page is used to find unreferenced pages to throw out on page faults
-            	translatedEntry = VMKernel.handlePageFault(super.getProcessID(), missedVirtualPage);
+            	translatedEntry = VMKernel.handlePageFault(super.getProcessID(), missedVirtualPage, loader);
             }
           
             //Write out translation to TLB
