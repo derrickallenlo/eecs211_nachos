@@ -781,13 +781,21 @@ public class UserProcess
     	//found FileDecriptorIndex of supporting max 16 concurrent files per user program
     	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
     	{
-				if (fileDescribtors[fdIndex] == null)
-				{
-					printDebug("\tCreating File...");
-					fileDescribtors[fdIndex] = ThreadedKernel.fileSystem.open(fileName, true);//making new one set to true
-					fileList.add(fileDescribtors[fdIndex].getName());
-					return fdIndex;
-				}
+			if (fileDescribtors[fdIndex] == null)
+			{
+				printDebug("\tCreating File...");
+				fileDescribtors[fdIndex] = ThreadedKernel.fileSystem.open(fileName, true);//making new one set to true
+				fileList.add(fileDescribtors[fdIndex].getName());
+				return fdIndex;
+			}
+			else
+			{
+				if (fileDescribtors[fdIndex].getName().compareTo(fileName) == 0)
+	    		{
+	    			printDebug("\tFile already open - handleOpen");
+	    			return fdIndex;
+	    		}
+			}
     	}
     	
     	printDebug("\tFile Descriptor has reached the maxium - 16 concurrent files - handleCreate");
@@ -821,18 +829,26 @@ public class UserProcess
     	
     	for (int fdIndex = 0; fdIndex < 16; fdIndex++)
     	{
+			if (fileDescribtors[fdIndex] == null)
+			{
+				printDebug("\tOpening File...");
+				fileDescribtors[fdIndex] = ThreadedKernel.fileSystem.open(fileName, false);//making new one set to true
 				if (fileDescribtors[fdIndex] == null)
 				{
-					printDebug("\tCreating File...");
-					fileDescribtors[fdIndex] = ThreadedKernel.fileSystem.open(fileName, false);//making new one set to true
-					if (fileDescribtors[fdIndex] == null)
-					{
-						printDebug("\tFile not exist or can't open - handleOpen");
-				    	return -1;
-					}
-					fileList.add(fileDescribtors[fdIndex].getName());
-					return fdIndex;
+					printDebug("\tFile not exist or can't open - handleOpen");
+			    	return -1;
 				}
+				fileList.add(fileDescribtors[fdIndex].getName());
+				return fdIndex;
+			}
+			else
+			{
+				if (fileDescribtors[fdIndex].getName().compareTo(fileName) == 0)
+	    		{
+	    			printDebug("\tFile already open - handleOpen");
+	    			return fdIndex;
+	    		}
+			}
     	}
     	printDebug("\tFile Descriptor has reached the maxium - 16 concurrent files - handleOpen");
     	return -1;	
@@ -1021,6 +1037,7 @@ public class UserProcess
     		return -1;
     	}
     	
+    	
         return numberBytes;  
     }
 
@@ -1104,8 +1121,20 @@ public class UserProcess
     		return -1;
         }
         
+       
+        for (int i = 0; i < 16; i++)
+		{
+			if (fileDescribtors[i] != null && fileName.compareTo(fileDescribtors[i].getName()) == 0)
+			{
+				fileDescribtors[i].close();
+				fileList.remove(fileName);
+				fileDescribtors[i] = null;
+			}
+		}
+        
         if (fileList.contains(fileName)) 
         {
+        	 printDebug("\t- handleUnlink");
         	deletedFileList.add(fileName);
 		}
 		else 
