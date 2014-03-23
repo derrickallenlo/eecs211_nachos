@@ -6,21 +6,19 @@ import java.util.LinkedList;
 import nachos.machine.Machine;
 
 /**
- * A <tt>SecondChanceReplacement</tt> 
- * The second-chance algorithm must maintain a pointer similar to the FIFO algorithm. 
- * In addition, it needs an array of u-bits, one for each frame.
- * 
- * The Nachos TLB sets the dirty and used bits, which you can use to implement the clock
- * algorithm for page replacement. Alternately, you may choose to implement the nth chance
- * clock algorithm as described in the lecture notes (see the textbook for more details on
- * these algorithms).
+ * A <tt>SecondChanceReplacement</tt>
+ * The second-chance algorithm must maintain a pointer similar to the FIFO
+ * algorithm. In addition, it needs an array of u-bits, one for each frame.
+ *
+ * The Nachos TLB sets the dirty and used bits, which you can use to implement
+ * the clock algorithm for page replacement. Alternately, you may choose to
+ * implement the nth chance clock algorithm as described in the lecture notes
+ * (see the textbook for more details on these algorithms).
  */
-
-
 public class SecondChanceReplacement extends ReplacementAlgorithm
 {
-	
-	 /*
+
+    /*
      * ******************************************************
      * variables need from VMKernel, Machine.processor*******
      * ******************************************************
@@ -34,7 +32,7 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
      * number of pages of physical memory in this simulated processor
      * ******************************************************
      * */
-	private final String algorithmName = "Second Chance";
+    private final String algorithmName = "Second Chance";
     private int current_frame;//pointer point to the location to be check
     private int num_faults;
     //private int used_frames;
@@ -48,9 +46,11 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
         num_faults = 0;
         //used_frames = 0;
         replace_frame = 0;
-        
+
         for (int i = 0; i < Machine.processor().getNumPhysPages(); i++)
-        	freeFrames.add(i);
+        {
+            freeFrames.add(i);
+        }
     }
 
     /**
@@ -61,22 +61,22 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
     @Override
     public int findSwappedPage()
     {
-    	num_faults++;
-    	
+        num_faults++;
+
         if (!freeFrames.isEmpty())
         {
-        	replace_frame = freeFrames.removeFirst();
-        	
-        	//used bit set to true will happen in Processor.translate()
-        	return replace_frame;
+            replace_frame = freeFrames.removeFirst();
+
+            //used bit set to true will happen in Processor.translate()
+            return replace_frame;
         }
         else
         {
             /* evict page pointed to by current_frame and if only if its u-bit is false, replace with new page, and increment. */
-            while (VMKernel.physicalMemoryMap[current_frame].entry.used)//search for used-bit contain 0
+            while (VMKernel.physicalDiskMap[current_frame].entry.used)//search for used-bit contain 0
             {
-            	//used bit set to true will happen in Processor.translate()
-            	VMKernel.physicalMemoryMap[current_frame].entry.used = false;
+                //used bit set to true will happen in Processor.translate()
+                VMKernel.physicalDiskMap[current_frame].entry.used = false;
 
                 current_frame = ++current_frame % Machine.processor().getNumPhysPages();//advance next frame
             }
@@ -90,24 +90,24 @@ public class SecondChanceReplacement extends ReplacementAlgorithm
             replace_frame = current_frame;//we found which frame will be replaced
             current_frame++;
             current_frame %= Machine.processor().getNumPhysPages();
-            
+
             return replace_frame;
         }
     }
-    
+
     /*returns the number of faults. */
     public int getNumberPageFault()
     {
         return num_faults;
     }
-    
+
     public String getAlgorithmName()
     {
-    	return algorithmName;
+        return algorithmName;
     }
-    
+
     public void removePage(int ppn)
-    { 	
-    	freeFrames.add((Integer)ppn);
+    {
+        freeFrames.add((Integer) ppn);
     }
 }

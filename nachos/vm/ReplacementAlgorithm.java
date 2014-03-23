@@ -6,9 +6,8 @@ import java.util.LinkedList;
 import nachos.machine.Machine;
 
 /**
- * A <tt>ReplacementAlgorithm</tt> 
- * Abstract class 
- * need to initiate with any Page replacement algorithm
+ * A <tt>ReplacementAlgorithm</tt>
+ * Abstract class need to initiate with any Page replacement algorithm
  */
 public abstract class ReplacementAlgorithm
 {
@@ -28,32 +27,35 @@ public abstract class ReplacementAlgorithm
      * */
     public ReplacementAlgorithm()
     {
-    	
+
     }
 
 
     /* this method will be defined by page replacement algorithm */
     /**
-  	 * perform page replacement algorithm
-  	 * @param non
-  	 * @return a physical page number that will replace 
-  	 */
+     * perform page replacement algorithm
+     *
+     * @param non
+     * @return a physical page number that will replace
+     */
     abstract int findSwappedPage();
-    
+
     /**
-  	 * get current page fault
-  	 * @param non
-  	 * @return int number of page faults 
-  	 */
+     * get current page fault
+     *
+     * @param non
+     * @return int number of page faults
+     */
     abstract int getNumberPageFault();
-    
+
     /**
-  	 * get replacement algorithm name
-  	 * @param non
-  	 * @return String name 
-  	 */
+     * get replacement algorithm name
+     *
+     * @param non
+     * @return String name
+     */
     abstract String getAlgorithmName();
-    
+
     abstract void removePage(int ppn);
 
 }
